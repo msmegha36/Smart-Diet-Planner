@@ -1,25 +1,21 @@
 <?php include 'components/head.php'; ?>
+<style>
+  /* Custom Animations */
+  @keyframes spin-slow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .animate-spin-slow { animation: spin-slow 25s linear infinite; }
 
-
-
-  <style>
-    /* Custom Animations */
-    @keyframes spin-slow {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .animate-spin-slow { animation: spin-slow 25s linear infinite; }
-
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in { animation: fade-in 1s ease-in-out; }
-    .animate-fade-in-up { animation: fade-in 1.2s ease-in-out; }
-  </style>
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in { animation: fade-in 1s ease-in-out; }
+  .animate-fade-in-up { animation: fade-in 1.2s ease-in-out; }
+</style>
 
 <?php include 'components/navbar.php'; ?>
-
 
 <!-- Main Content -->
 <main class="flex items-center justify-center min-h-screen bg-gray-50 px-4 pt-28 pb-20">
@@ -27,32 +23,21 @@
   <div class="bg-white rounded-2xl shadow-lg w-full max-w-xl p-10">
     <!-- Logo -->
     <div class="text-center mb-6">
-      <img src="https://cdn-icons-png.flaticon.com/512/3069/3069171.png" 
-           alt="logo" class="w-20 h-20 mx-auto animate-bounce">
       <h1 class="text-3xl font-bold text-emerald-700 mt-4">Smart Diet Planner</h1>
       <p class="text-gray-500 text-base">Login to continue</p>
     </div>
 
     <!-- Form -->
-    <form action="dashboard.html" method="POST" class="space-y-6">
+    <form id="loginForm" action="" method="POST" class="space-y-6" novalidate>
       <div>
         <label class="block text-gray-700 font-medium mb-2">Email</label>
-        <input type="email" name="email" required 
-               class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+         <input type="email" id="email" name="email"
+           class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
       </div>
       <div>
         <label class="block text-gray-700 font-medium mb-2">Password</label>
-        <input type="password" name="password" required 
-               class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
-      </div>
-
-      <!-- Remember Me + Forgot -->
-      <div class="flex items-center justify-between text-sm">
-        <label class="flex items-center space-x-2">
-          <input type="checkbox" class="text-emerald-600 rounded">
-          <span class="text-gray-600">Remember Me</span>
-        </label>
-        <a href="#" class="text-emerald-600 hover:underline">Forgot Password?</a>
+       <input type="password" id="password" name="password"
+           class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
       </div>
 
       <!-- Submit -->
@@ -89,14 +74,20 @@
   </div>
 </main>
 
-
-
 <?php include 'components/footer.php'; ?>
 
 <script>
+  // Mobile menu toggle
   const menuBtn = document.getElementById("menu-btn");
   const mobileMenu = document.getElementById("mobile-menu");
-  menuBtn.addEventListener("click", () => {
-    mobileMenu.classList.toggle("hidden");
-  });
+  if(menuBtn){
+    menuBtn.addEventListener("click", () => {
+      mobileMenu.classList.toggle("hidden");
+    });
+  }
+
+  
+    
+  
 </script>
+

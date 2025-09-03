@@ -15,17 +15,19 @@
     <nav class="hidden md:flex space-x-8 text-lg font-semibold text-gray-700">
       <a href="index.php" class="hover:text-emerald-600 transition">Home</a>
       <a href="#features" class="hover:text-emerald-600 transition">Features</a>
-      <a href="nutrionist.php" class="hover:text-emerald-600 transition">nutrionist</a>
+      <a href="nutrionist.php" class="hover:text-emerald-600 transition">Nutrition Experts</a>
       <a href="dietplan.php" class="hover:text-emerald-600 transition">Diet Plans</a>
       
       
       <a href="#about" class="hover:text-emerald-600 transition">About</a>
+
+      <a href="../user/index.php" class="hover:text-emerald-600 transition">Dashboard Test</a>
     </nav>
 
     <!-- Sign Up -->
     <a href="login.php" 
        class="hidden md:inline-block bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition transform hover:scale-105">
-      Get Started
+      SignUp
     </a>
 
     <!-- Mobile Menu Button -->
@@ -43,13 +45,13 @@
     <nav class="flex flex-col space-y-4 px-6 py-6 text-lg font-semibold text-gray-700">
       <a href="index.php" class="hover:text-emerald-600 transition">Home</a>
       <a href="#features" class="hover:text-emerald-600 transition">Features</a>
-      <a href="nutrionist.php" class="hover:text-emerald-600 transition">nutrionist</a>
+      <a href="nutrionist.php" class="hover:text-emerald-600 transition">Nutrition Experts</a>
      <a href="dietplan.php" class="hover:text-emerald-600 transition">Diet Plans</a>
       
       
        <a href="#about" class="hover:text-emerald-600 transition">About</a>
       <a href="login.php" class="bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition text-center">
-        Get Started
+        SignUp
       </a>
     </nav>
   </div>

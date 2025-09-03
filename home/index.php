@@ -26,7 +26,7 @@
 
       <!-- Buttons -->
       <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-        <a href="register.html"
+        <a href="register.php"
            class="bg-emerald-500 text-white px-8 py-4 rounded-full font-semibold hover:bg-emerald-600 transition transform hover:scale-110">
           Get Started
         </a>
