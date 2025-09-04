@@ -236,7 +236,7 @@
 <section id="about" class="container mx-auto flex flex-col md:flex-row items-center gap-12 px-6 py-20">
   <!-- Image -->
   <div class="w-full md:w-1/2 animate-fade-in">
-    <img src="images/team.jpg" 
+    <img src="images/about_img.png" 
          alt="Our Team" 
          class="max-w-md h-auto object-cover rounded-2xl shadow-xl hover:scale-105 transition mx-auto">
   </div>
@@ -255,7 +255,7 @@
       <h3 class="text-2xl font-bold text-green-600 mb-4">Developer Info</h3>
       <ul class="text-gray-700 space-y-2 text-lg">
         <li><span class="font-semibold">Name:</span> Megha M S</li>
-        <li><span class="font-semibold">Roll No:</span> CHN24MCA-2039</li>
+        <li><span class="font-semibold">Roll No:</span> CHN24MCA-2036</li>
         <li><span class="font-semibold">College:</span> College of Engineering Chengannur</li>
         <li><span class="font-semibold">Course:</span> MCA Final Year</li>
       </ul>

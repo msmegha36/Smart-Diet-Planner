@@ -1,4 +1,46 @@
-<?php include 'components/head.php'; ?>
+<?php 
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+include 'components/head.php'; 
+
+include(__DIR__ . '/../config/db_conn.php');
+
+session_start();
+$error = "";
+
+// Handle login
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $email = mysqli_real_escape_string($connection, $_POST['email']);
+    $password = mysqli_real_escape_string($connection, $_POST['password']);
+
+    if (!empty($email) && !empty($password)) {
+        // Hash password (same method used in register.php)
+        $hashed_pass = md5($password);
+
+        $sql = "SELECT * FROM reg WHERE email='$email' AND password='$hashed_pass'";
+        $result = mysqli_query($connection, $sql);
+
+        if (mysqli_num_rows($result) == 1) {
+            $row = mysqli_fetch_assoc($result);
+
+            // Set session data
+            $_SESSION['user_id'] = $row['id'];
+            $_SESSION['name'] = $row['name'];
+            $_SESSION['email'] = $row['email'];
+
+            echo "<script>alert('Login Successful ✅'); window.location='../user/index.php';</script>";
+            exit();
+        } else {
+            $error = "Invalid email or password ❌";
+        }
+    } else {
+        $error = "Please fill in all fields";
+    }
+}
+?>
+
 <style>
   /* Custom Animations */
   @keyframes spin-slow {
@@ -27,22 +69,29 @@
       <p class="text-gray-500 text-base">Login to continue</p>
     </div>
 
+    <!-- Error message -->
+    <?php if (!empty($error)): ?>
+      <div class="bg-red-100 text-red-700 px-4 py-2 rounded mb-4">
+        <?php echo $error; ?>
+      </div>
+    <?php endif; ?>
+
     <!-- Form -->
     <form id="loginForm" action="" method="POST" class="space-y-6" novalidate>
       <div>
         <label class="block text-gray-700 font-medium mb-2">Email</label>
-         <input type="email" id="email" name="email"
-           class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+        <input type="email" id="email" name="email" required
+          class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
       </div>
       <div>
         <label class="block text-gray-700 font-medium mb-2">Password</label>
-       <input type="password" id="password" name="password"
-           class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+        <input type="password" id="password" name="password" required
+          class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
       </div>
 
       <!-- Submit -->
-      <button type="submit" 
-              class="w-full bg-emerald-600 text-white font-semibold text-lg py-3.5 rounded-lg hover:bg-emerald-700 transition">
+      <button type="submit" name="login"
+        class="w-full bg-emerald-600 text-white font-semibold text-lg py-3.5 rounded-lg hover:bg-emerald-700 transition">
         Login
       </button>
     </form>
@@ -73,6 +122,7 @@
     </p>
   </div>
 </main>
+
 
 <?php include 'components/footer.php'; ?>
 

@@ -1,3 +1,57 @@
+<?php
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+
+
+// go up one level from /home to /config
+include(__DIR__ . '/../config/db_conn.php');
+
+
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Escape and sanitize inputs
+    $name = mysqli_real_escape_string($connection, $_POST['name']);
+    $age = mysqli_real_escape_string($connection, $_POST['age']);
+    $weight = mysqli_real_escape_string($connection, $_POST['weight']);
+    $height = mysqli_real_escape_string($connection, $_POST['height']);
+    $email = mysqli_real_escape_string($connection, $_POST['email']);
+    $pass = mysqli_real_escape_string($connection, $_POST['password']);
+    $gender = mysqli_real_escape_string($connection, $_POST['gender']);
+    $health_issues = mysqli_real_escape_string($connection, $_POST['health_issues']);
+    $dietary = mysqli_real_escape_string($connection, $_POST['dietary']);
+    $goal = mysqli_real_escape_string($connection, $_POST['goal']);
+    $activity = mysqli_real_escape_string($connection, $_POST['activity']);
+    $meal_type = mysqli_real_escape_string($connection, $_POST['meal_type']);
+    $type = 1; // user role (1 = normal user, 0 = admin, etc.)
+
+    // Check if email already exists
+    $check = "SELECT * FROM reg WHERE email='$email'";
+    $res = mysqli_query($connection, $check);
+    if (mysqli_num_rows($res) > 0) {
+        echo "<script>alert('User already exists!'); window.location='login.php';</script>";
+        exit();
+    }
+
+    // Hash password
+    $hashed_pass = md5($pass);
+
+    // Insert into database
+    $sql = "INSERT INTO reg 
+        (name, age, weight, height, email, password, gender, health_issues, dietary, goal, activity, meal_type, type) 
+        VALUES 
+        ('$name', '$age', '$weight', '$height', '$email', '$hashed_pass', '$gender', '$health_issues', '$dietary', '$goal', '$activity', '$meal_type', '$type')";
+    
+    if (mysqli_query($connection, $sql)) {
+        echo "<script>alert('Successfully Registered ✅'); window.location='login.php';</script>";
+    } else {
+        echo "<script>alert('Error: " . mysqli_error($connection) . "');</script>";
+    }
+}
+?>
+
+
 <?php include 'components/head.php'; ?>
 
 

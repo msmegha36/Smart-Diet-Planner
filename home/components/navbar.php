@@ -1,3 +1,6 @@
+<?php
+session_start();
+?>
 <body class="bg-gray-50 text-gray-800">
 
 <!-- Navbar -->
@@ -17,18 +20,23 @@
       <a href="#features" class="hover:text-emerald-600 transition">Features</a>
       <a href="nutrionist.php" class="hover:text-emerald-600 transition">Nutrition Experts</a>
       <a href="dietplan.php" class="hover:text-emerald-600 transition">Diet Plans</a>
-      
-      
       <a href="#about" class="hover:text-emerald-600 transition">About</a>
-
-      <a href="../user/index.php" class="hover:text-emerald-600 transition">Dashboard Test</a>
     </nav>
 
-    <!-- Sign Up -->
-    <a href="login.php" 
-       class="hidden md:inline-block bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition transform hover:scale-105">
-      SignUp
-    </a>
+    <!-- Right-side Button -->
+    <?php if (isset($_SESSION['user_id'])): ?>
+      <!-- Show Dashboard if logged in -->
+      <a href="../user/index.php" 
+         class="hidden md:inline-block bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition transform hover:scale-105">
+        Dashboard
+      </a>
+    <?php else: ?>
+      <!-- Show SignUp if not logged in -->
+      <a href="login.php" 
+         class="hidden md:inline-block bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition transform hover:scale-105">
+        SignUp
+      </a>
+    <?php endif; ?>
 
     <!-- Mobile Menu Button -->
     <button id="menu-btn" class="md:hidden text-gray-700 focus:outline-none">
@@ -46,13 +54,20 @@
       <a href="index.php" class="hover:text-emerald-600 transition">Home</a>
       <a href="#features" class="hover:text-emerald-600 transition">Features</a>
       <a href="nutrionist.php" class="hover:text-emerald-600 transition">Nutrition Experts</a>
-     <a href="dietplan.php" class="hover:text-emerald-600 transition">Diet Plans</a>
-      
-      
-       <a href="#about" class="hover:text-emerald-600 transition">About</a>
-      <a href="login.php" class="bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition text-center">
-        SignUp
-      </a>
+      <a href="dietplan.php" class="hover:text-emerald-600 transition">Diet Plans</a>
+      <a href="#about" class="hover:text-emerald-600 transition">About</a>
+
+      <?php if (isset($_SESSION['user_id'])): ?>
+        <!-- Mobile Dashboard -->
+        <a href="../user/index.php" class="bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition text-center">
+          Dashboard
+        </a>
+      <?php else: ?>
+        <!-- Mobile SignUp -->
+        <a href="login.php" class="bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition text-center">
+          SignUp
+        </a>
+      <?php endif; ?>
     </nav>
   </div>
 </header>
