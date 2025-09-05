@@ -49,6 +49,8 @@ $history_res = mysqli_query($connection, $history_sql);
       <p><strong>Age:</strong> <?= htmlspecialchars($user['age']); ?></p>
       <p><strong>Height:</strong> <?= htmlspecialchars($user['height']); ?> cm</p>
       <p><strong>Weight:</strong> <?= htmlspecialchars($user['weight']); ?> kg</p>
+      
+
     </div>
   </section>
 

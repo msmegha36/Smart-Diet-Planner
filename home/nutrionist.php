@@ -1,33 +1,24 @@
-<?php include 'components/head.php'; ?>
+<?php 
+include(__DIR__ . '/../config/db_conn.php'); 
+include 'components/head.php'; 
+include 'components/navbar.php'; 
+?>
 
-
-  <style>
-    /* Custom Animations */
-   @keyframes spin-slow {
+<style>
+/* Custom Animations */
+@keyframes spin-slow {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+.animate-spin-slow { animation: spin-slow 25s linear infinite; }
 
-.animate-spin-slow {
-  animation: spin-slow 25s linear infinite;
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in { animation: fade-in 1s ease-in-out; }
-    .animate-fade-in-up { animation: fade-in 1.2s ease-in-out; }
-
-   
-  </style>
-
-<?php include 'components/navbar.php'; ?>
-
-
-
-
-
+.animate-fade-in { animation: fade-in 1s ease-in-out; }
+.animate-fade-in-up { animation: fade-in 1.2s ease-in-out; }
+</style>
 
 <!-- Nutritionists Page -->
 <section id="nutritionists" class="bg-gray-50 py-20 mt-15">
@@ -40,77 +31,53 @@
 
     <!-- Cards Grid -->
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-10">
-      
-     <!-- Card 1 -->
-<div class="bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-2xl transition">
-  <div class="w-full h-64 overflow-hidden">
-    <img src="images/nutritionist1.jpg" alt="Nutritionist 1" class="w-full h-full object-cover object-top">
-  </div>
-  <div class="p-6">
-    <h3 class="text-xl font-bold text-green-600">Dr. Anjali Nair</h3>
-    <p class="text-gray-500 text-sm">M.Sc. Clinical Nutrition | 8+ years</p>
-    <p class="text-gray-600 mt-3 text-sm leading-relaxed">
-      Specializes in weight management, diabetes care, and balanced diet planning.
-    </p>
-    <a href="contact.php?name=anjali-nair" 
-       class="mt-4 inline-block bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition">
-      Contact
-    </a>
-  </div>
-</div>
+      <?php
+      $sql = "SELECT * FROM nutritionists WHERE status='approved' ORDER BY created_at DESC";
+      $result = mysqli_query($connection, $sql);
 
-<!-- Card 2 -->
-<div class="bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-2xl transition">
-  <div class="w-full h-64 overflow-hidden">
-    <img src="images/nutritionist2.jpg" alt="Nutritionist 2" class="w-full h-full object-cover object-top">
-  </div>
-  <div class="p-6">
-    <h3 class="text-xl font-bold text-green-600">Mr. Rahul Menon</h3>
-    <p class="text-gray-500 text-sm">Certified Sports Nutritionist | 5+ years</p>
-    <p class="text-gray-600 mt-3 text-sm leading-relaxed">
-      Expert in sports diet, fitness nutrition, and high-performance meal planning.
-    </p>
-    <a href="contact.php?name=rahul-menon" 
-       class="mt-4 inline-block bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition">
-      Contact
-    </a>
-  </div>
-</div>
+      if ($result && mysqli_num_rows($result) > 0) {
+          while ($row = mysqli_fetch_assoc($result)) {
+              $name = htmlspecialchars($row['name']);
+              $specialization = htmlspecialchars($row['specialization']);
+              $experience = (int)$row['experience'];
+              $description = htmlspecialchars($row['description']);
+              $image = !empty($row['image']) ? $row['image'] : 'images/default-nutritionist.jpg';
+              $email = htmlspecialchars($row['email']);
 
-<!-- Card 3 -->
-<div class="bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-2xl transition">
-  <div class="w-full h-64 overflow-hidden">
-    <img src="images/nutritionist3.jpg" alt="Nutritionist 3" class="w-full h-full object-cover object-top">
+             echo "
+  <div class='bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-2xl transition'>
+    <div class='w-full h-64 overflow-hidden'>
+      <img src='../nutrionist/" . $row['image'] . "' 
+           alt='" . htmlspecialchars($row['name'], ENT_QUOTES) . "' 
+           class='w-full h-full object-cover object-top'>
+    </div>
+    <div class='p-6'>
+      <h3 class='text-xl font-bold text-green-600'>" . htmlspecialchars($row['name']) . "</h3>
+      <p class='text-gray-500 text-sm'>" . htmlspecialchars($row['specialization']) . " | " . intval($row['experience']) . "+ years</p>
+      <p class='text-gray-600 mt-3 text-sm leading-relaxed'>" . htmlspecialchars($row['description']) . "</p>
+      <a href='contact.php?nutritionist_id=" . $row['id'] . "' 
+         class='mt-4 inline-block bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition'>
+        Contact
+      </a>
+    </div>
   </div>
-  <div class="p-6">
-    <h3 class="text-xl font-bold text-green-600">Megha M S</h3>
-    <p class="text-gray-500 text-sm">Freelance Dietitian | MCA Final Year</p>
-    <p class="text-gray-600 mt-3 text-sm leading-relaxed">
-      Passionate about creating sustainable meal plans and personalized diet solutions.
-    </p>
-    <a href="contact.php?name=megha-ms" 
-       class="mt-4 inline-block bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition">
-      Contact
-    </a>
-  </div>
-</div>
+";
 
+          }
+      } else {
+          echo "<p class='col-span-3 text-gray-500 text-lg'>No nutritionists available at the moment.</p>";
+      }
+      ?>
     </div>
   </div>
 </section>
 
-
-
-
-
-
 <?php include 'components/footer.php'; ?>
 
 <script>
-  const menuBtn = document.getElementById("menu-btn");
-  const mobileMenu = document.getElementById("mobile-menu");
-
-  menuBtn.addEventListener("click", () => {
-    mobileMenu.classList.toggle("hidden");
-  });
+const menuBtn = document.getElementById("menu-btn");
+const mobileMenu = document.getElementById("mobile-menu");
+menuBtn.addEventListener("click", () => {
+  mobileMenu.classList.toggle("hidden");
+});
 </script>
