@@ -13,6 +13,25 @@ if (!isset($_SESSION['nutritionist_id'])) {
 
 $nutritionist_id = $_SESSION['nutritionist_id'];
 
+// Handle approve/reject actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['appointment_id'])) {
+    $appointment_id = intval($_POST['appointment_id']);
+    $action = $_POST['action'];
+
+    if ($action === 'approve') {
+        $update = $connection->prepare("UPDATE appointments SET status = 'confirmed' WHERE id = ? AND nutritionist_id = ?");
+        $update->bind_param("ii", $appointment_id, $nutritionist_id);
+        $update->execute();
+    } elseif ($action === 'reject') {
+        $delete = $connection->prepare("DELETE FROM appointments WHERE id = ? AND nutritionist_id = ?");
+        $delete->bind_param("ii", $appointment_id, $nutritionist_id);
+        $delete->execute();
+    }
+
+    header("Location: appointments.php"); // Refresh to see changes
+    exit();
+}
+
 // Fetch appointments for this nutritionist with user details
 $sql = "SELECT a.*, r.name AS user_name, r.email AS user_email, a.phone AS user_phone
         FROM appointments a
@@ -42,7 +61,7 @@ $result = $stmt->get_result();
             <th class="px-4 py-3 text-left">Date</th>
             <th class="px-4 py-3 text-left">Time</th>
             <th class="px-4 py-3 text-left">Notes</th>
-            <th class="px-4 py-3 text-left">Status</th>
+            <th class="px-4 py-3 text-left">Action</th>
             <th class="px-4 py-3 text-left">Booked On</th>
           </tr>
         </thead>
@@ -56,9 +75,20 @@ $result = $stmt->get_result();
               <td class="px-4 py-3"><?= htmlspecialchars(substr($row['appointment_time'], 0, 5)); ?></td>
               <td class="px-4 py-3"><?= $row['notes'] ? htmlspecialchars($row['notes']) : '—'; ?></td>
               <td class="px-4 py-3">
-                <?php if ($row['status'] == 'pending'): ?>
-                  <span class="px-2 py-1 text-sm rounded bg-yellow-100 text-yellow-700">Pending</span>
-                <?php elseif ($row['status'] == 'confirmed'): ?>
+                <?php if ($row['status'] === 'pending'): ?>
+                  <form method="POST" class="flex gap-2">
+                    <input type="hidden" name="appointment_id" value="<?= $row['id']; ?>">
+                    <button type="submit" name="action" value="approve"
+                      class="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 text-sm">
+                      ✅ Approve
+                    </button>
+                    <button type="submit" name="action" value="reject"
+                      class="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm"
+                      onclick="return confirm('Are you sure you want to reject this appointment?');">
+                      ❌ Reject
+                    </button>
+                  </form>
+                <?php elseif ($row['status'] === 'confirmed'): ?>
                   <span class="px-2 py-1 text-sm rounded bg-green-100 text-green-700">Confirmed</span>
                 <?php else: ?>
                   <span class="px-2 py-1 text-sm rounded bg-red-100 text-red-700">Cancelled</span>
