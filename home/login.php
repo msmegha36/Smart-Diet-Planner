@@ -27,8 +27,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // Set session data
             $_SESSION['user_id'] = $row['id'];
-            $_SESSION['name'] = $row['name'];
-            $_SESSION['email'] = $row['email'];
+            //$_SESSION['name'] = $row['name'];
+            //$_SESSION['email'] = $row['email'];
 
             echo "<script>alert('Login Successful ✅'); window.location='../user/index.php';</script>";
             exit();

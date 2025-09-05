@@ -2,14 +2,14 @@
 session_start();
 
 // ✅ Unset only nutritionist session
-if (isset($_SESSION['user_id'])) {
-    unset($_SESSION['user_id']);
+if (isset($_SESSION['nutritionist_id'])) {
+    unset($_SESSION['nutritionist_id']);
 }
 
 // Optionally: if you want to destroy full session when only nutritionist is logged in
 // session_destroy();
 
 // Redirect back to nutritionist login
-header("Location: ../home/login.php");
+header("Location: login.php");
 exit();
 ?>

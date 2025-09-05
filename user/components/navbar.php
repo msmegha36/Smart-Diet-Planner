@@ -22,8 +22,13 @@
       <a href="my_appointments.php" class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
         <i class="fas fa-weight"></i> Appoinments
       </a>
-      <a href="logout.php" class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-red-600 transition">
+     
+    </nav>
+     <!-- Logout -->
+    <div class="p-4 border-t border-emerald-600">
+      <a href="logout.php" 
+         class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-red-600 transition">
         <i class="fas fa-sign-out-alt"></i> Logout
       </a>
-    </nav>
+    </div>
   </aside>

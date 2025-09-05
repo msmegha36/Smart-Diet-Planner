@@ -22,11 +22,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             if ($row['status'] === 'approved') {
                 // Set session data
-                $_SESSION['nutri_id'] = $row['id'];
-                $_SESSION['name'] = $row['name'];
-                $_SESSION['email'] = $row['email'];
+                $_SESSION['nutritionist_id'] = $row['id'];
+                //$_SESSION['name'] = $row['name'];
+               // $_SESSION['email'] = $row['email'];
 
-                echo "<script>alert('Login Successful ✅'); window.location='dashboard.php';</script>";
+                echo "<script>alert('Login Successful ✅'); window.location='index.php';</script>";
                 exit();
             } elseif ($row['status'] === 'pending') {
                 $error = "⏳ Your account is pending approval. Please wait for admin approval.";

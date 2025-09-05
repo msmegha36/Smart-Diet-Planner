@@ -63,10 +63,12 @@ It replicates human dietitian decision-making using a **rule-based AI logic syst
 
 This project is licensed under the **MIT License** – free to use, modify, and distribute.
 
-```
+
 
 http://localhost/Smart-Diet-Planner/home/index.php
 
+http://localhost/Smart-Diet-Planner/nutrionist/index.php
 
----
+
+
 
