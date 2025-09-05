@@ -69,6 +69,8 @@ http://localhost/Smart-Diet-Planner/home/index.php
 
 http://localhost/Smart-Diet-Planner/nutrionist/index.php
 
+http://localhost/Smart-Diet-Planner/admin/login.php
+
 
 
 

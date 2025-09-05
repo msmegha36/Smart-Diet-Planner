@@ -6,19 +6,25 @@
     <!-- Logo / Title -->
     <div class="p-6 text-2xl font-bold border-b border-emerald-600 flex items-center gap-2">
       <i class="fas fa-leaf"></i> 
-      <span>Nutritionist</span>
+      <span>ADMIN</span>
     </div>
 
-    <!-- Navigation -->
-      <nav class="flex-1 p-4 space-y-2">
-       <a href="index.php" 
-         class=" flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition ">
-        <i class="fas fa-user"></i> Profile
+      <a href="index.php" 
+         class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
+        <i class="fas fa-calendar-check"></i> Home
       </a>
    
-      <a href="appointments.php" 
+      <a href="nutrionist-approval.php" 
          class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
-        <i class="fas fa-calendar-check"></i> View Appointments
+        <i class="fas fa-calendar-check"></i> Approve Nutionist
+      </a>
+        <a href="nutrionist-manage.php" 
+         class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
+        <i class="fas fa-calendar-check"></i> Manage Nutionist
+      </a>
+        <a href="dietplans.php" 
+         class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
+        <i class="fas fa-calendar-check"></i> Diet palns
       </a>
     
     </nav>
