@@ -14,6 +14,15 @@ It replicates a dietitian’s decision-making process using a **rule-based AI lo
 
 ---
 
+## 🌐 Local URLs
+
+* User Home: [http://localhost/Smart-Diet-Planner/home/index.php](http://localhost/Smart-Diet-Planner/home/index.php)
+* Nutritionist Portal: [http://localhost/Smart-Diet-Planner/nutrionist/index.php](http://localhost/Smart-Diet-Planner/nutrionist/index.php)
+* Admin Login: [http://localhost/Smart-Diet-Planner/admin/login.php](http://localhost/Smart-Diet-Planner/admin/login.php)
+* Admin Login: [http://localhost/phpmyadmin/](http://localhost/phpmyadmin/)
+
+---
+
 ## 🚀 Key Features
 
 ### 👤 User Features
@@ -97,13 +106,6 @@ It replicates a dietitian’s decision-making process using a **rule-based AI lo
 
 ---
 
-## 🌐 Local URLs
-
-* User Home: [http://localhost/Smart-Diet-Planner/home/index.php](http://localhost/Smart-Diet-Planner/home/index.php)
-* Nutritionist Portal: [http://localhost/Smart-Diet-Planner/nutrionist/index.php](http://localhost/Smart-Diet-Planner/nutrionist/index.php)
-* Admin Login: [http://localhost/Smart-Diet-Planner/admin/login.php](http://localhost/Smart-Diet-Planner/admin/login.php)
-
----
 
 ## 👨‍💻 Contributor
 
