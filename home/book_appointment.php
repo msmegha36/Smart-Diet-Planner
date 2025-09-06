@@ -16,9 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nutritionist_id = intval($_POST['nutritionist_id']);
 
     // Use session values (from login/registration)
-    $name  = $_SESSION['name'];
-    $email = $_SESSION['email'];
+    //$name  = $_SESSION['name'];
+   // $email = $_SESSION['email'];
      // ✅ Ensure you store phone in session at login
+
+    $name  = $_POST['name'];
+    $email = $_POST['email'];
 
     $date  = $_POST['date'];
     $phone  = $_POST['phone'];

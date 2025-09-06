@@ -1,77 +1,120 @@
+
+---
+
 # 🥗 Smart Diet Planner
 
-The **Smart Diet Planner** is a nutrition and fitness web application designed to provide **personalized diet plans, BMI tracking, progress visualization, and nutrition recommendations**.  
-It replicates human dietitian decision-making using a **rule-based AI logic system** while providing users with tools to **monitor and improve their health**.
+The **Smart Diet Planner** is a nutrition and fitness management web application that provides **personalized diet plans, BMI tracking, nutritionist approval, and progress visualization**.
+
+It replicates a dietitian’s decision-making process using a **rule-based AI logic system**, while giving users tools to **track their health, book nutritionist appointments, and follow structured diet plans**.
+
+---
+## 🖼️ Homepage Preview
+
+![Smart Diet Planner Homepage](nutrionist/uploads/diet-home.png)
 
 ---
 
 ## 🚀 Key Features
 
-### 👤 User Management
-- User **Registration & Login** (secure authentication).
-- **Multi-step registration form** (Name, Age, Weight, Height, Email, Password, Food Preference, Plans, etc.).
-- **User Dashboard** with profile details and update option via **Bootstrap modal**.
+### 👤 User Features
 
-### 📊 Nutrition & Diet Planning
-- **Personalized diet plans** based on:
-  - BMI (Body Mass Index).
-  - Age & Gender.
-  - Activity level.
-  - Food preference (Veg/Non-Veg).
-  - Fitness goals (Weight Loss, Maintenance, Muscle Gain).
-- **AI-driven rule-based logic** for meal suggestions.
-- Daily calorie breakdown into **Protein, Carbs, and Fat** (visualized with charts).
-- **Meal cards** with calorie & nutrient values.
+* **User Registration & Login** with secure authentication.
+* Multi-step registration form:
 
-### 📈 Progress Tracking
-- **BMI Calculation & Tracking** with history.
-- **Weight progress visualization** (charts & comparison).
-- Store and display **previous & updated data** with timestamps.
-- **Daily/Weekly/Monthly Progress Reports**.
+  * Name, Age, Weight, Height, Email, Password, Food Preference, Plans.
+* **User Dashboard**:
 
-### 🍽️ Meal & Nutrition Pages
-- **Diet Plan Page**: 
-  - Explains importance of diet.
-  - Shows different diet strategies (Calorie deficit, Balanced diet, High-protein diet, etc.).
-  - Interactive UI with **left-right alternating cards and images**.
-- **Personalized Diet Plan Page**:
-  - AI-generated daily/weekly meal plans.
-  - Nutrition charts and meal recommendations.
-  - Easy-to-read structured layout.
+  * View & update profile (via Bootstrap modal).
+  * Track BMI & diet plans.
+* **Personalized Diet Plans** based on:
 
-### 📅 Appointment & Contact
-- **Contact Page** with:
-  - Nutritionist images, names, and experience.
-  - Appointment booking form.
+  * BMI, Age, Gender.
+  * Activity Level.
+  * Food Preference (Veg/Non-Veg/Vegan).
+  * Fitness Goals (Weight Loss, Weight Gain, Muscle Gain, Balanced).
+* **Progress Tracking**:
 
-### 🛠️ Technical Features
-- **Frontend**: TailwindCSS / Bootstrap with responsive modern UI.
-- **Charts**: Visualizing calories, macros, and progress (Chart.js).
-- **GitHub Integration** for version control.
+  * BMI history & comparison.
+  * Weight tracking with charts.
+  * Daily/Weekly/Monthly reports.
 
 ---
 
+### 📊 Diet & Nutrition Management
 
-## 👨‍💻 Contributors
+* **Diet Plans Database** managed by admin:
 
-* **Megha M S** – Project Lead & Developer
-* Open to contributions – fork, improve, and make PRs!
+  * Goal, Dietary Preference, Activity Level, Meal Type.
+  * Plan description with macros (Protein, Carbs, Fat).
+* Users get **AI-driven, rule-based diet suggestions**.
+* **Charts & Visualizations** (calorie & nutrient breakdown).
+* **Meal Cards** for structured, easy-to-follow diets.
+
+---
+
+### 👩‍⚕️ Nutritionist Management
+
+* **Nutritionist Registration** with profile details (Name, Email, Phone, Specialization, Experience, Image).
+* **Admin Approval System**:
+
+  * Approve or reject nutritionist applications.
+  * View approved nutritionists list.
+  * Delete nutritionists if needed.
+* **Appointment Booking**:
+
+  * Users can view nutritionists.
+  * Book appointments through the contact page.
+
+---
+
+### 📅 Pages
+
+* **Home Page** – Modern responsive UI (TailwindCSS).
+* **Diet Plan Page** – Explains diet strategies (Calorie Deficit, Balanced, High-Protein, etc.).
+* **Personalized Diet Plan Page** – User-specific meal recommendations.
+* **Contact Page** – Nutritionist details & appointment form.
+* **Admin Dashboard** – Manage:
+
+  * Nutritionists (Approval, Deletion).
+  * Diet Plans (Create, Update, Delete).
+
+---
+
+### 🛠️ Technical Stack
+
+* **Frontend**: TailwindCSS (modern responsive UI).
+* **Backend**: PHP (session-based authentication).
+* **Database**: MySQL.
+* **Charts**: Chart.js (for calories, macros, BMI tracking).
+* **Version Control**: Git & GitHub.
+
+---
+
+## 🔑 Admin Credentials (Demo)
+
+* **Email**: `admin@example.com`
+* **Password**: `admin123`
+
+---
+
+## 🌐 Local URLs
+
+* User Home: [http://localhost/Smart-Diet-Planner/home/index.php](http://localhost/Smart-Diet-Planner/home/index.php)
+* Nutritionist Portal: [http://localhost/Smart-Diet-Planner/nutrionist/index.php](http://localhost/Smart-Diet-Planner/nutrionist/index.php)
+* Admin Login: [http://localhost/Smart-Diet-Planner/admin/login.php](http://localhost/Smart-Diet-Planner/admin/login.php)
+
+---
+
+## 👨‍💻 Contributor
+
+**Developer:** Megha M S (CHN24MCA-2036)
+📌 Developed as part of **MCA Final Year Project**
 
 ---
 
 ## 📜 License
 
-This project is licensed under the **MIT License** – free to use, modify, and distribute.
+This project is developed strictly for educational purposes as part of the MCA program.
+It is not intended for commercial use. You may study, modify, and use the code only for learning and academic projects.
 
-
-
-http://localhost/Smart-Diet-Planner/home/index.php
-
-http://localhost/Smart-Diet-Planner/nutrionist/index.php
-
-http://localhost/Smart-Diet-Planner/admin/login.php
-
-
-admin123
-admin@example.com
-
+---

@@ -1,6 +1,6 @@
 <?php include 'components/head.php'; ?>
 <?php include 'components/navbar.php'; ?>
-<?php include 'db.php'; ?> <!-- your DB connection -->
+<?php include(__DIR__ . '/../config/db_conn.php');  ?> <!-- your DB connection -->
 
 <!-- Main Content -->
 <main class="flex-1 overflow-y-auto p-8">

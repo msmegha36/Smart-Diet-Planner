@@ -251,15 +251,38 @@
     </p>
 
     <!-- Developer Info Card -->
-    <div class="bg-white/90 backdrop-blur-lg shadow-lg rounded-2xl p-6 mb-8 hover:shadow-2xl transition transform hover:-translate-y-1">
-      <h3 class="text-2xl font-bold text-green-600 mb-4">Developer Info</h3>
-      <ul class="text-gray-700 space-y-2 text-lg">
-        <li><span class="font-semibold">Name:</span> Megha M S</li>
-        <li><span class="font-semibold">Roll No:</span> CHN24MCA-2036</li>
-        <li><span class="font-semibold">College:</span> College of Engineering Chengannur</li>
-        <li><span class="font-semibold">Course:</span> MCA Final Year</li>
-      </ul>
-    </div>
+<div class="bg-white/90 backdrop-blur-lg shadow-lg rounded-2xl p-6 mb-8 hover:shadow-2xl transition transform hover:-translate-y-1">
+  <h3 class="text-2xl font-bold text-green-600 mb-4">Developer Info</h3>
+  <ul class="text-gray-700 space-y-2 text-lg">
+    <li><span class="font-semibold">Name:</span> Megha M S</li>
+    <li><span class="font-semibold">Roll No:</span> CHN24MCA-2036</li>
+    <li><span class="font-semibold">About:</span> MCA Final Year Student, College of Engineering Chengannur</li>
+    <li class="flex items-center space-x-6">
+      <!-- GitHub -->
+      <a href="https://github.com/msmegha36" target="_blank" class="flex items-center space-x-2 text-gray-800 hover:text-black">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2.1c-3.2.7-3.9-1.4-3.9-1.4-.6-1.6-1.5-2-1.5-2-1.2-.9.1-.9.1-.9 1.3.1 2 .9 2 .9 1.2 2 3.1 1.5 3.9 1.1.1-.9.5-1.5.9-1.9-2.6-.3-5.4-1.3-5.4-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.3 11.3 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.1.7.8 1.2 1.9 1.2 3.2 0 4.7-2.8 5.7-5.4 6 .5.4 1 .8 1 2v3c0 .3.2.7.8.6A10.9 10.9 0 0 0 23.5 12C23.5 5.7 18.3.5 12 .5z"/>
+        </svg>
+        <span>GitHub</span>
+      </a>
+      <!-- LinkedIn -->
+      <a href="https://www.linkedin.com/in/megha-m-s-a6056127b/" target="_blank" class="flex items-center space-x-2 text-blue-700 hover:text-blue-900">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M20.45 20.45h-3.55v-5.6c0-1.34 0-3.05-1.86-3.05-1.87 0-2.16 1.46-2.16 2.96v5.7H9.34V9h3.4v1.56h.05c.47-.88 1.62-1.81 3.34-1.81 3.57 0 4.23 2.35 4.23 5.41v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.11 20.45H3.57V9h3.54v11.45zM22.23 0H1.77C.8 0 0 .77 0 1.72v20.55C0 23.23.8 24 1.77 24h20.46c.97 0 1.77-.77 1.77-1.73V1.72C24 .77 23.2 0 22.23 0z"/>
+        </svg>
+        <span>LinkedIn</span>
+      </a>
+    </li>
+    <li>
+      <span class="font-semibold">Project Repo:</span>
+      <a href="https://github.com/msmegha36/Smart-Diet-Planner" target="_blank" class="text-green-600 hover:underline">
+        github.com/msmegha36/Smart-Diet-Planner
+      </a>
+    </li>
+  </ul>
+</div>
+
+
 
     <!-- CTA -->
     <a href="#team" 

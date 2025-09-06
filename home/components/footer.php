@@ -42,7 +42,7 @@
     <!-- Bottom -->
     <div class="border-t border-emerald-500 my-8"></div>
     <div class="text-center text-sm">
-      <p>&copy; 2025 <span class="font-bold">MyDiet</span> | Developed as part of MCA  Project</p>
+      <p>&copy; 2025 <span class="font-bold">Smart Diet Planner</span> | Developed as part of MCA  Project</p>
       <p class="text-emerald-200 mt-1"> Developer: Megha M S (CHN24MCA-2036)</p>
     </div>
   </div>
