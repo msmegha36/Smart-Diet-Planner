@@ -284,10 +284,10 @@
 
 
 
-    <!-- CTA -->
+    <!-- CTA 
     <a href="#team" 
        class="bg-green-500 text-white px-8 py-4 rounded-full font-bold hover:bg-green-600 transition transform hover:scale-110">
-      Meet The Team
+      Meet The Team -->
     </a>
   </div>
 </section>
