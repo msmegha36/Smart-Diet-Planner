@@ -19,7 +19,13 @@ It replicates a dietitian’s decision-making process using a **rule-based AI lo
 * User Home: [http://localhost/Smart-Diet-Planner/home/index.php](http://localhost/Smart-Diet-Planner/home/index.php)
 * Nutritionist Portal: [http://localhost/Smart-Diet-Planner/nutrionist/index.php](http://localhost/Smart-Diet-Planner/nutrionist/index.php)
 * Admin Login: [http://localhost/Smart-Diet-Planner/admin/login.php](http://localhost/Smart-Diet-Planner/admin/login.php)
-* Admin Login: [http://localhost/phpmyadmin/](http://localhost/phpmyadmin/)
+* DB: [http://localhost/phpmyadmin/](http://localhost/phpmyadmin/)
+
+---
+## 🔑 Admin Credentials (Demo)
+
+* **Email**: `admin@example.com`
+* **Password**: `admin123`
 
 ---
 
@@ -99,17 +105,11 @@ It replicates a dietitian’s decision-making process using a **rule-based AI lo
 
 ---
 
-## 🔑 Admin Credentials (Demo)
-
-* **Email**: `admin@example.com`
-* **Password**: `admin123`
-
----
-
 
 ## 👨‍💻 Contributor
 
 **Developer:** Megha M S (CHN24MCA-2036)
+
 📌 Developed as part of **MCA Final Year Project**
 
 ---
