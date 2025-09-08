@@ -77,9 +77,9 @@
       to make healthy living simple and sustainable.
     </p>
 
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
+     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
       
-      <!-- Card -->
+      <!-- Card 1 -->
       <div class="bg-white/90 backdrop-blur-lg p-8 rounded-3xl shadow-md hover:shadow-2xl hover:scale-105 transition transform duration-300">
         <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-tr from-green-100 to-green-300 flex items-center justify-center shadow-md">
           <img src="images/plan.png" alt="Tailored Plans" class="w-14 h-14">
@@ -88,25 +88,26 @@
         <p class="text-gray-600">AI-powered diet plans customized to your health goals, lifestyle, and preferences.</p>
       </div>
 
-      <!-- Card -->
-      <div class="bg-white/90 backdrop-blur-lg p-8 rounded-3xl shadow-md hover:shadow-2xl hover:scale-105 transition transform duration-300">
-        <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-tr from-yellow-100 to-yellow-300 flex items-center justify-center shadow-md">
-          <img src="images/recipe.png" alt="Smart Recipes" class="w-14 h-14">
-        </div>
-        <h3 class="text-xl font-semibold text-green-600 mb-3">Healthy Recipes</h3>
-        <p class="text-gray-600">Nutritious, easy-to-cook meals designed to match your taste and culture.</p>
+     <!-- Card 2 (Updated: BMI & Health Analysis) -->
+     <div class="bg-white/90 backdrop-blur-lg p-8 rounded-3xl shadow-md hover:shadow-2xl hover:scale-105 transition transform duration-300">
+      <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-tr from-blue-100 to-blue-300 flex items-center justify-center shadow-md">
+       <img src="images/bmi.png" alt="Health Analysis" class="w-14 h-14">
       </div>
+      <h3 class="text-xl font-semibold text-green-600 mb-3">BMI & Health Analysis</h3>
+      <p class="text-gray-600">Easily calculate BMI and assess your health metrics to plan better diets.</p>
+     </div>
 
-      <!-- Card -->
-      <div class="bg-white/90 backdrop-blur-lg p-8 rounded-3xl shadow-md hover:shadow-2xl hover:scale-105 transition transform duration-300">
-        <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-tr from-blue-100 to-blue-300 flex items-center justify-center shadow-md">
-          <img src="images/grocery.png" alt="Easy Groceries" class="w-14 h-14">
-        </div>
-        <h3 class="text-xl font-semibold text-green-600 mb-3">Smart Grocery Lists</h3>
-        <p class="text-gray-600">Auto-generated shopping lists that save time, money, and reduce food waste.</p>
+     <!-- Card 3 (Updated: Dietitian Support) -->
+     <div class="bg-white/90 backdrop-blur-lg p-8 rounded-3xl shadow-md hover:shadow-2xl hover:scale-105 transition transform duration-300">
+      <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-tr from-pink-100 to-pink-300 flex items-center justify-center shadow-md">
+       <img src="images/dietitian.png" alt="Dietitian Support" class="w-14 h-14">
       </div>
+      <h3 class="text-xl font-semibold text-green-600 mb-3">Dietitian Support</h3>
+      <p class="text-gray-600">Get expert guidance from approved dietitians for personalized nutrition advice.</p>
+     </div>
 
-      <!-- Card -->
+
+      <!-- Card 4 -->
       <div class="bg-white/90 backdrop-blur-lg p-8 rounded-3xl shadow-md hover:shadow-2xl hover:scale-105 transition transform duration-300">
         <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-tr from-pink-100 to-pink-300 flex items-center justify-center shadow-md">
           <img src="images/community.png" alt="Community" class="w-14 h-14">
@@ -130,9 +131,9 @@
 <section id="platform" class="bg-green-50 py-20">
   <div class="container mx-auto text-center px-6">
     <!-- Heading -->
-    <h2 class="text-4xl font-extrabold text-gray-800 mb-6">Why Choose <span class="text-green-600">MyDiet</span>?</h2>
+    <h2 class="text-4xl font-extrabold text-gray-800 mb-6">Why Choose <span class="text-green-600">Smart Diet Planner</span>?</h2>
     <p class="text-gray-600 mb-16 text-lg max-w-2xl mx-auto">
-      More than a diet planner—MyDiet is your smart companion for healthier living.
+      More than a diet planner—Smart Diet Planner is your smart companion for healthier living.
     </p>
 
     <!-- Cards -->
