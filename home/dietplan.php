@@ -29,7 +29,7 @@
 
   <!-- Plan 1 -->
   <div class="grid md:grid-cols-2 gap-10 items-center">
-    <img src="https://img.freepik.com/free-photo/healthy-salad-bowl_23-2148511746.jpg" 
+    <img src="images/saladbowl.jpg" 
          alt="Calorie Deficit" 
          class="rounded-2xl shadow-lg">
     <div>
@@ -50,14 +50,14 @@
         boosts metabolism, and keeps you full longer. Includes lean meat, eggs, legumes, and dairy.
       </p>
     </div>
-    <img src="https://img.freepik.com/free-photo/protein-foods_23-2148511733.jpg" 
+    <img src="images/highprotein.jpg" 
          alt="High Protein" 
          class="rounded-2xl shadow-lg order-1 md:order-2">
   </div>
 
   <!-- Plan 3 -->
   <div class="grid md:grid-cols-2 gap-10 items-center">
-    <img src="https://img.freepik.com/free-photo/variety-fruits-vegetables_23-2148511729.jpg" 
+    <img src="images/fruits.jpg" 
          alt="Plant Based Diet" 
          class="rounded-2xl shadow-lg">
     <div>
@@ -79,7 +79,7 @@
         Known as one of the healthiest diets in the world.
       </p>
     </div>
-    <img src="https://img.freepik.com/free-photo/greek-salad-bowl_23-2148511740.jpg" 
+    <img src="images/greekbowl.jpg" 
          alt="Mediterranean Diet" 
          class="rounded-2xl shadow-lg order-1 md:order-2">
   </div>
