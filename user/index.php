@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 
 include(__DIR__ . '/../config/db_conn.php');
 
-// If no session, redirect to login
+// Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../home/login.php");
     exit();
@@ -19,17 +19,16 @@ $user_res = mysqli_query($connection, $sql);
 $user = mysqli_fetch_assoc($user_res);
 
 // Fetch matching diet plan based on user preferences
-$diet_sql = "SELECT * FROM diet_plans 
+$diet_sql = "SELECT SUM(protein) AS protein, SUM(carbs) AS carbs, SUM(fat) AS fat, GROUP_CONCAT(meal_text SEPARATOR '\n') AS plan_text
+             FROM diet_plans
              WHERE goal = '{$user['goal']}' 
                AND dietary = '{$user['dietary']}' 
                AND activity = '{$user['activity']}' 
-               AND meal_type = '{$user['meal_type']}' 
-             LIMIT 1";
-
+               AND meal_type = '{$user['meal_type']}'";
 $diet_res = mysqli_query($connection, $diet_sql);
 $diet = mysqli_fetch_assoc($diet_res);
 
-// Fetch history
+// Fetch progress history
 $history_sql = "SELECT * FROM progress_history WHERE user_id='$user_id' ORDER BY updated_at DESC";
 $history_res = mysqli_query($connection, $history_sql);
 ?>
@@ -49,12 +48,10 @@ $history_res = mysqli_query($connection, $history_sql);
       <p><strong>Age:</strong> <?= htmlspecialchars($user['age']); ?></p>
       <p><strong>Height:</strong> <?= htmlspecialchars($user['height']); ?> cm</p>
       <p><strong>Weight:</strong> <?= htmlspecialchars($user['weight']); ?> kg</p>
-      
-
     </div>
   </section>
 
-  <!-- Chart Section -->
+  <!-- Calorie Breakdown Chart -->
   <section class="bg-white rounded-xl shadow-lg p-6 mb-8">
     <h2 class="text-xl font-bold text-emerald-700 mb-4">Calorie Breakdown</h2>
     <div class="relative w-full h-80">
@@ -62,17 +59,17 @@ $history_res = mysqli_query($connection, $history_sql);
     </div>
   </section>
 
-  <!-- Diet Plan Section -->
+  <!-- Diet Plan Section 
   <section class="bg-white rounded-xl shadow-lg p-6 mb-8">
     <h2 class="text-xl font-bold text-emerald-700 mb-4">Your Diet Plan</h2>
-    <?php if ($diet): ?>
+    <?php // if ($diet && ($diet['plan_text'] || $diet['protein'] || $diet['carbs'] || $diet['fat'])): ?>
       <div class="text-gray-700 whitespace-pre-line">
-        <?= nl2br(htmlspecialchars($diet['plan_text'])); ?>
+        <? // nl2br(htmlspecialchars($diet['plan_text'])); ?>
       </div>
-    <?php else: ?>
+    <?php //else: ?>
       <p class="text-gray-500">No matching plan found for your preferences.</p>
-    <?php endif; ?>
-  </section>
+    <?php // endif; ?>
+  </section> -->
 
   <!-- History Section -->
   <section>
@@ -127,25 +124,41 @@ $history_res = mysqli_query($connection, $history_sql);
   </div>
 </div>
 
-<!-- Chart.js CDN -->
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
 function toggleModal(show) {
-  document.getElementById("updateModal").classList.toggle("hidden", !show);
-  document.getElementById("updateModal").classList.toggle("flex", show);
+  const modal = document.getElementById("updateModal");
+  modal.classList.toggle("hidden", !show);
+  modal.classList.toggle("flex", show);
 }
 
-const ctx = document.getElementById('calorieChart').getContext('2d');
-new Chart(ctx, {
-  type: 'doughnut',
-  data: {
-    labels: ['Protein', 'Carbs', 'Fat'],
-    datasets: [{
-      data: [<?= $diet['protein'] ?? 0 ?>, <?= $diet['carbs'] ?? 0 ?>, <?= $diet['fat'] ?? 0 ?>],
-      backgroundColor: ['#10B981', '#3B82F6', '#F59E0B']
-    }]
-  },
-  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+// Ensure DOM is loaded before initializing chart
+document.addEventListener("DOMContentLoaded", function() {
+    const ctx = document.getElementById('calorieChart');
+    if(ctx) {
+        const calorieChart = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Protein', 'Carbs', 'Fat'],
+                datasets: [{
+                    data: [
+                        <?= !empty($diet['protein']) ? $diet['protein'] : 0 ?>,
+                        <?= !empty($diet['carbs']) ? $diet['carbs'] : 0 ?>,
+                        <?= !empty($diet['fat']) ? $diet['fat'] : 0 ?>
+                    ],
+                    backgroundColor: ['#10B981', '#3B82F6', '#F59E0B'],
+                    borderWidth: 1
+                }]
+            },
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
 });
+</script>
+
 </script>

@@ -16,6 +16,9 @@
       <a href="progress.php" class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
         <i class="fas fa-chart-line"></i> Progress
       </a>
+      <a href="user_dietPlan.php" class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
+        <i class="fas fa-utensils"></i> Generated Plans
+      </a>
       <a href="bmi.php" class="flex items-center gap-3 py-2 px-4 rounded-lg hover:bg-emerald-600 transition">
         <i class="fas fa-weight"></i> BMI Calculator
       </a>
