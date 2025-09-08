@@ -18,13 +18,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_id'])) {
     $dietary = $_POST['dietary'];
     $activity = $_POST['activity'];
     $meal_type = $_POST['meal_type'];
-    $plan_text = $_POST['plan_text'];
+    $day_number = intval($_POST['day_number']);
+    $meal_time = $_POST['meal_time'];
+    $meal_text = $_POST['meal_text'];
     $protein = intval($_POST['protein']);
     $carbs = intval($_POST['carbs']);
     $fat = intval($_POST['fat']);
+    $calories = intval($_POST['calories']);
 
-    $update = $connection->prepare("UPDATE diet_plans SET goal=?, dietary=?, activity=?, meal_type=?, plan_text=?, protein=?, carbs=?, fat=? WHERE id=?");
-    $update->bind_param("ssssssiii", $goal, $dietary, $activity, $meal_type, $plan_text, $protein, $carbs, $fat, $id);
+    $update = $connection->prepare("UPDATE diet_plans 
+        SET goal=?, dietary=?, activity=?, meal_type=?, day_number=?, meal_time=?, meal_text=?, protein=?, carbs=?, fat=?, calories=? 
+        WHERE id=?");
+    $update->bind_param("ssssissiiiii", 
+        $goal, $dietary, $activity, $meal_type, $day_number, $meal_time, $meal_text, $protein, $carbs, $fat, $calories, $id
+    );
     $update->execute();
 
     header("Location: dietplans.php");
@@ -51,7 +58,9 @@ $result = $connection->query($sql);
             <th class="px-4 py-3 text-left">Dietary</th>
             <th class="px-4 py-3 text-left">Activity</th>
             <th class="px-4 py-3 text-left">Meal Type</th>
-            <th class="px-4 py-3 text-left">Plan</th>
+            <th class="px-4 py-3 text-left">Day</th>
+            <th class="px-4 py-3 text-left">Meal Time</th>
+            <th class="px-4 py-3 text-left">Meal</th>
             <th class="px-4 py-3 text-left">Macros</th>
             <th class="px-4 py-3 text-left">Action</th>
           </tr>
@@ -63,17 +72,19 @@ $result = $connection->query($sql);
               <td class="px-4 py-3"><?= htmlspecialchars($row['dietary']); ?></td>
               <td class="px-4 py-3"><?= htmlspecialchars($row['activity']); ?></td>
               <td class="px-4 py-3"><?= htmlspecialchars($row['meal_type']); ?></td>
-              <td class="px-4 py-3 text-sm"><?= nl2br(htmlspecialchars($row['plan_text'])); ?></td>
+              <td class="px-4 py-3">Day <?= $row['day_number']; ?></td>
+              <td class="px-4 py-3"><?= htmlspecialchars($row['meal_time']); ?></td>
+              <td class="px-4 py-3 text-sm"><?= nl2br(htmlspecialchars($row['meal_text'])); ?></td>
               <td class="px-4 py-3 text-sm">
                 🥩 Protein: <?= $row['protein']; ?>g <br>
                 🍚 Carbs: <?= $row['carbs']; ?>g <br>
-                🥑 Fat: <?= $row['fat']; ?>g
+                🥑 Fat: <?= $row['fat']; ?>g <br>
+                🔥 Calories: <?= $row['calories']; ?> kcal
               </td>
               <td class="px-4 py-3">
-                <!-- Button to open modal -->
                 <button 
                   class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm"
-                  onclick="openModal(<?= htmlspecialchars(json_encode($row)); ?>)">
+                  onclick='openModal(<?= json_encode($row); ?>)'>
                   ✏ Edit
                 </button>
               </td>
@@ -111,14 +122,22 @@ $result = $connection->query($sql);
           <label class="block font-semibold">Meal Type</label>
           <input type="text" name="meal_type" id="meal_type" class="w-full border rounded p-2" required>
         </div>
+        <div>
+          <label class="block font-semibold">Day Number (1-7)</label>
+          <input type="number" name="day_number" id="day_number" class="w-full border rounded p-2" min="1" max="7" required>
+        </div>
+        <div>
+          <label class="block font-semibold">Meal Time</label>
+          <input type="text" name="meal_time" id="meal_time" class="w-full border rounded p-2" required>
+        </div>
       </div>
 
       <div>
-        <label class="block font-semibold">Plan Description</label>
-        <textarea name="plan_text" id="plan_text" rows="4" class="w-full border rounded p-2" required></textarea>
+        <label class="block font-semibold">Meal Description</label>
+        <textarea name="meal_text" id="meal_text" rows="4" class="w-full border rounded p-2" required></textarea>
       </div>
 
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-4 gap-4">
         <div>
           <label class="block font-semibold">Protein (g)</label>
           <input type="number" name="protein" id="protein" class="w-full border rounded p-2">
@@ -130,6 +149,10 @@ $result = $connection->query($sql);
         <div>
           <label class="block font-semibold">Fat (g)</label>
           <input type="number" name="fat" id="fat" class="w-full border rounded p-2">
+        </div>
+        <div>
+          <label class="block font-semibold">Calories</label>
+          <input type="number" name="calories" id="calories" class="w-full border rounded p-2">
         </div>
       </div>
 
@@ -149,10 +172,13 @@ function openModal(data) {
   document.getElementById('dietary').value = data.dietary;
   document.getElementById('activity').value = data.activity;
   document.getElementById('meal_type').value = data.meal_type;
-  document.getElementById('plan_text').value = data.plan_text;
+  document.getElementById('day_number').value = data.day_number;
+  document.getElementById('meal_time').value = data.meal_time;
+  document.getElementById('meal_text').value = data.meal_text;
   document.getElementById('protein').value = data.protein;
   document.getElementById('carbs').value = data.carbs;
   document.getElementById('fat').value = data.fat;
+  document.getElementById('calories').value = data.calories;
 }
 
 function closeModal() {
