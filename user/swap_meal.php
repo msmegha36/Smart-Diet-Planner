@@ -5,7 +5,6 @@ ini_set('display_errors', 1);
 
 include(__DIR__ . '/../config/db_conn.php');
 
-// Redirect if not logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../home/login.php");
     exit();
@@ -13,55 +12,59 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-if (!isset($_POST['meal_id'])) {
-    $_SESSION['error'] = "Invalid request!";
-    header("Location: user_diet_plans.php");
-    exit();
-}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
+    $meal_id = intval($_POST['meal_id']);
 
-$meal_id = intval($_POST['meal_id']);
+    // Get current meal details
+    $meal_res = mysqli_query($connection, "SELECT * FROM user_diet_plans WHERE id='$meal_id' AND user_id='$user_id'");
+    $meal = mysqli_fetch_assoc($meal_res);
 
-// Fetch the meal to swap
-$meal = mysqli_fetch_assoc(mysqli_query($connection, "SELECT * FROM user_diet_plans WHERE id='$meal_id' AND user_id='$user_id'"));
+    if (!$meal) {
+        $_SESSION['error'] = "Invalid meal selected.";
+        header("Location: diet_plans.php");
+        exit();
+    }
 
-if (!$meal) {
-    $_SESSION['error'] = "Meal not found!";
-    header("Location: user_diet_plans.php");
-    exit();
-}
+    // Hash current meal text
+    $currentHash = hash('sha256', $meal['meal_text']);
 
-// Find a random alternative meal from diet_plans matching user's goal, dietary, activity, meal_type
-$alt_meal_sql = "SELECT * FROM diet_plans 
-                 WHERE goal = (SELECT goal FROM reg WHERE id='$user_id')
-                   AND dietary = (SELECT dietary FROM reg WHERE id='$user_id')
-                   AND activity = (SELECT activity FROM reg WHERE id='$user_id')
-                   AND meal_type = '{$meal['meal_time']}'
-                 ORDER BY RAND() LIMIT 1";
+    // Fetch an alternative meal that is not the same as the current one
+    $alt_res = mysqli_query($connection, "
+        SELECT * FROM meal_swaps 
+        WHERE meal_hash='$currentHash' AND alt_hash != '$currentHash' 
+        ORDER BY RAND() LIMIT 1
+    ");
 
-$alt_meal_res = mysqli_query($connection, $alt_meal_sql);
-$alt_meal = mysqli_fetch_assoc($alt_meal_res);
+    if (mysqli_num_rows($alt_res) > 0) {
+        $alt = mysqli_fetch_assoc($alt_res);
 
-if (!$alt_meal) {
-    $_SESSION['error'] = "No alternative meal available for swapping!";
+        // Update user's plan with the alternative meal
+        $stmt = $connection->prepare("
+            UPDATE user_diet_plans
+            SET meal_text=?, protein=?, carbs=?, fat=?, calories=?
+            WHERE id=? AND user_id=?
+        ");
+        $stmt->bind_param(
+            "siiiiii",
+            $alt['alternative_text'],
+            $alt['protein'],
+            $alt['carbs'],
+            $alt['fat'],
+            $alt['calories'],
+            $meal_id,
+            $user_id
+        );
+
+        if ($stmt->execute()) {
+            $_SESSION['success'] = "Meal swapped successfully!";
+        } else {
+            $_SESSION['error'] = "Error swapping meal: " . $stmt->error;
+        }
+        $stmt->close();
+    } else {
+        $_SESSION['error'] = "⚠️ No alternative swap available for this meal.";
+    }
+
     header("Location: user_dietPlan.php");
     exit();
 }
-
-// Update user's meal with the alternative meal
-$update_sql = "UPDATE user_diet_plans SET 
-                meal_text = '".mysqli_real_escape_string($connection, $alt_meal['meal_text'])."',
-                protein = {$alt_meal['protein']},
-                carbs = {$alt_meal['carbs']},
-                fat = {$alt_meal['fat']},
-                calories = {$alt_meal['calories']}
-               WHERE id='$meal_id' AND user_id='$user_id'";
-
-if (mysqli_query($connection, $update_sql)) {
-    $_SESSION['success'] = "Meal swapped successfully!";
-} else {
-    $_SESSION['error'] = "Failed to swap meal. Please try again.";
-}
-
-header("Location: user_dietPlan.php");
-exit();
-?>
