@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
 
 ?>
 
-<main class="flex-1 overflow-y-auto p-8">
+<main class="flex-1 overflow-y-auto p-8 bg-gray-50">
 
   <?php if($success): ?>
     <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
@@ -144,6 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
   <section class="bg-white rounded-xl shadow-lg p-6 mb-8">
     <h2 class="text-2xl font-bold text-emerald-700 mb-6">Personalized Nutrition Plan</h2>
     <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Form fields -->
       <div>
         <label class="block text-gray-700 font-medium">Activity Level</label>
         <select name="activity" class="w-full border rounded-lg px-3 py-2 mt-1">
@@ -178,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
 
       <!-- Generate Plan button -->
       <div class="md:col-span-2">
-        <button type="submit" name="generate_plan" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        <button type="submit" name="generate_plan" class="w-full bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700">
           📝 Generate Plan
         </button>
       </div>
@@ -192,6 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
           </button>
         </div>
       <?php endif; ?>
+
     </form>
   </section>
 
@@ -204,10 +207,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
           <div class="bg-emerald-600 text-white px-4 py-2 font-bold">Day <?= $day['day_number'] ?></div>
           <div class="divide-y divide-gray-200 bg-gray-50">
             <?php foreach($day['meals'] as $meal): ?>
-              <div class="p-3">
-                <strong class="text-emerald-700"><?= strtoupper($meal['meal_time']) ?></strong>: <?= $meal['meal_text'] ?>
-                <div class="text-sm text-gray-600 mt-1">
-                  Protein: <?= $meal['protein'] ?>g | Carbs: <?= $meal['carbs'] ?>g | Fat: <?= $meal['fat'] ?>g | Calories: <?= $meal['calories'] ?> kcal
+              <div class="p-3 hover:bg-gray-100 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                <!-- Meal Time Badge -->
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-200 text-emerald-800">
+                  <?= strtoupper($meal['meal_time']) ?>
+                </span>
+                <!-- Meal Text -->
+                <span class="font-medium text-gray-800 flex-1"><?= htmlspecialchars($meal['meal_text']) ?></span>
+                <!-- Macros -->
+                <div class="flex gap-2 text-sm mt-1 md:mt-0">
+                  <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded">P: <?= $meal['protein'] ?>g</span>
+                  <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded">C: <?= $meal['carbs'] ?>g</span>
+                  <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded">F: <?= $meal['fat'] ?>g</span>
+                  <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded">Cal: <?= $meal['calories'] ?>kcal</span>
                 </div>
               </div>
             <?php endforeach; ?>
