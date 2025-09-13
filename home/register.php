@@ -1,30 +1,24 @@
 <?php
-
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-
-
-// go up one level from /home to /config
 include(__DIR__ . '/../config/db_conn.php');
-
-
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Escape and sanitize inputs
-    $name = mysqli_real_escape_string($connection, $_POST['name']);
-    $age = mysqli_real_escape_string($connection, $_POST['age']);
-    $weight = mysqli_real_escape_string($connection, $_POST['weight']);
-    $height = mysqli_real_escape_string($connection, $_POST['height']);
-    $email = mysqli_real_escape_string($connection, $_POST['email']);
-    $pass = mysqli_real_escape_string($connection, $_POST['password']);
-    $gender = mysqli_real_escape_string($connection, $_POST['gender']);
-    $health_issues = mysqli_real_escape_string($connection, $_POST['health_issues']);
-    $dietary = mysqli_real_escape_string($connection, $_POST['dietary']);
-    $goal = mysqli_real_escape_string($connection, $_POST['goal']);
-    $activity = mysqli_real_escape_string($connection, $_POST['activity']);
-    $meal_type = mysqli_real_escape_string($connection, $_POST['meal_type']);
-    $type = 1; // user role (1 = normal user, 0 = admin, etc.)
+    $name         = mysqli_real_escape_string($connection, $_POST['name']);
+    $age          = mysqli_real_escape_string($connection, $_POST['age']);
+    $weight       = mysqli_real_escape_string($connection, $_POST['weight']);
+    $height       = mysqli_real_escape_string($connection, $_POST['height']);
+    $email        = mysqli_real_escape_string($connection, $_POST['email']);
+    $pass         = mysqli_real_escape_string($connection, $_POST['password']);
+    $gender       = mysqli_real_escape_string($connection, $_POST['gender']);
+    $health_issues= mysqli_real_escape_string($connection, $_POST['health_issues']);
+    $dietary      = mysqli_real_escape_string($connection, $_POST['food']); // updated field name
+    $goal         = mysqli_real_escape_string($connection, $_POST['goal']);
+    $activity     = mysqli_real_escape_string($connection, $_POST['activity']);
+    $meal_type    = mysqli_real_escape_string($connection, $_POST['meal_type']);
+    $type         = 1; // user role
 
     // Check if email already exists
     $check = "SELECT * FROM reg WHERE email='$email'";
@@ -37,19 +31,57 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Hash password
     $hashed_pass = md5($pass);
 
-    // Insert into database
+    // Insert user into reg table
     $sql = "INSERT INTO reg 
         (name, age, weight, height, email, password, gender, health_issues, dietary, goal, activity, meal_type, type) 
         VALUES 
         ('$name', '$age', '$weight', '$height', '$email', '$hashed_pass', '$gender', '$health_issues', '$dietary', '$goal', '$activity', '$meal_type', '$type')";
     
     if (mysqli_query($connection, $sql)) {
-        echo "<script>alert('Successfully Registered ✅'); window.location='login.php';</script>";
+        $user_id = mysqli_insert_id($connection);
+
+        // Generate diet plan for user from diet_plans table
+        for($day=1; $day<=7; $day++){
+            $stmt = $connection->prepare("
+                SELECT * FROM diet_plans 
+                WHERE goal=? AND dietary=? AND activity=? AND meal_type=? AND day_number=?
+            ");
+            $stmt->bind_param("ssssi", $goal, $dietary, $activity, $meal_type, $day);
+            $stmt->execute();
+            $res_plan = $stmt->get_result();
+
+            while($meal = $res_plan->fetch_assoc()){
+                // Insert into user_diet_plans
+                $insert = $connection->prepare("
+                    INSERT INTO user_diet_plans
+                    (user_id, day_number, meal_time, meal_text, protein, carbs, fat, calories)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $insert->bind_param(
+    "iissiiii",
+    $user_id,
+    $meal['day_number'],
+    $meal['meal_time'],
+    $meal['meal_text'],
+    $meal['protein'],
+    $meal['carbs'],
+    $meal['fat'],
+    $meal['calories']
+);
+
+                $insert->execute();
+                $insert->close();
+            }
+            $stmt->close();
+        }
+
+        echo "<script>alert('Successfully Registered ✅. Your diet plan is ready!'); window.location='login.php';</script>";
     } else {
         echo "<script>alert('Error: " . mysqli_error($connection) . "');</script>";
     }
 }
 ?>
+
 
 
 <?php include 'components/head.php'; ?>
@@ -189,64 +221,71 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
       </div>
 
-      <!-- STEP 3 -->
-      <div id="step3" class="step hidden">
-        <h2 class="text-xl font-semibold text-gray-700 mb-6">🥗 Diet Preferences</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <label class="block text-gray-700 font-medium mb-2">Dietary Restriction</label>
-            <select name="dietary" required 
-                    class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
-              <option value="">-- Select --</option>
-              <option value="veg">Vegetarian</option>
-              <option value="nonveg">Non-Vegetarian</option>
-              <option value="vegan">Vegan</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-gray-700 font-medium mb-2">Fitness Goal</label>
-            <select name="goal" required 
-                    class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
-              <option value="">-- Select --</option>
-              <option value="weight_loss">Weight Loss</option>
-              <option value="weight_gain">Weight Gain</option>
-              <option value="muscle_build">Muscle Building</option>
-              <option value="balanced">Balanced Diet</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-gray-700 font-medium mb-2">Activity Level</label>
-            <select name="activity" required 
-                    class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
-              <option value="">-- Select --</option>
-              <option value="sedentary">Sedentary</option>
-              <option value="light">Light Activity</option>
-              <option value="moderate">Moderate</option>
-              <option value="active">Active</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-gray-700 font-medium mb-2">Preferred Meal Type</label>
-            <select name="meal_type" required 
-                    class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
-              <option value="">-- Select --</option>
-              <option value="3_meals">3 Meals/Day</option>
-              <option value="5_small">5 Small Meals</option>
-              <option value="intermittent">Intermittent Fasting</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex justify-between mt-8">
-          <button type="button" onclick="nextStep(2)" 
-                  class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition">
-            ← Back
-          </button>
-          <button type="button" onclick="nextStep(4)" 
-                  class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition">
-            Next →
-          </button>
-        </div>
-      </div>
+<!-- STEP 3 -->
+<div id="step3" class="step hidden">
+  <h2 class="text-xl font-semibold text-gray-700 mb-6">🥗 Diet Preferences</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+    <!-- Food Preference -->
+    <div>
+      <label class="block text-gray-700 font-medium mb-2">Food Preference</label>
+      <select name="food" required 
+              class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+        <option value="">-- Select --</option>
+        <option value="veg">Vegetarian</option>
+        <option value="nonveg">Non-Vegetarian</option>
+      </select>
+    </div>
+
+    <!-- Fitness Goal -->
+    <div>
+      <label class="block text-gray-700 font-medium mb-2">Fitness Goal</label>
+      <select name="goal" required 
+              class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+        <option value="">-- Select --</option>
+        <option value="weight_loss">Weight Loss</option>
+        <option value="weight_gain">Weight Gain</option>
+        <option value="muscle_build">Muscle Building</option>
+        <option value="balanced">Balanced Diet</option>
+      </select>
+    </div>
+
+    <!-- Activity Level -->
+    <div>
+      <label class="block text-gray-700 font-medium mb-2">Activity Level</label>
+      <select name="activity" required 
+              class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+        <option value="">-- Select --</option>
+        <option value="light">Light Activity</option>
+        <option value="moderate">Moderate Activity</option>
+        <option value="active">Active</option>
+      </select>
+    </div>
+
+    <!-- Meal Type -->
+    <div>
+      <label class="block text-gray-700 font-medium mb-2">Preferred Meal Type</label>
+      <select name="meal_type" required 
+              class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+        <option value="">-- Select --</option>
+        <option value="3_meals">3 Meals/Day</option>
+        <option value="5_small">5 Small Meals</option>
+      </select>
+    </div>
+
+  </div>
+  <div class="flex justify-between mt-8">
+    <button type="button" onclick="nextStep(2)" 
+            class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition">
+      ← Back
+    </button>
+    <button type="button" onclick="nextStep(4)" 
+            class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition">
+      Next →
+    </button>
+  </div>
+</div>
+
 
       <!-- STEP 4 -->
       <div id="step4" class="step hidden">

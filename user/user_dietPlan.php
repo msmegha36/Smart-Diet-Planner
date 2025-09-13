@@ -16,8 +16,11 @@ $user_id = $_SESSION['user_id'];
 $user = mysqli_fetch_assoc(mysqli_query($connection, "SELECT * FROM reg WHERE id='$user_id'"));
 
 // Fetch user diet plans
-$plans_res = mysqli_query($connection, "SELECT * FROM user_diet_plans WHERE user_id='$user_id' ORDER BY day_number ASC, 
-                                        FIELD(meal_time, 'breakfast','lunch','snack','dinner')");
+$plans_res = mysqli_query($connection, "
+    SELECT * FROM user_diet_plans 
+    WHERE user_id='$user_id' 
+    ORDER BY day_number ASC, FIELD(meal_time, 'breakfast','lunch','snack','dinner')
+");
 
 // Group plans by day
 $userPlans = [];
@@ -36,7 +39,7 @@ unset($_SESSION['success'], $_SESSION['error']);
 <?php include 'components/navbar.php'; ?>
 
 <main class="flex-1 overflow-y-auto p-8">
-  <h2 class="text-3xl font-bold text-emerald-700 mb-6">Your Diet Plans</h2>
+  <h2 class="text-3xl font-bold text-emerald-700 mb-6">🍽 Your Weekly Diet Plans</h2>
 
   <!-- Display session messages -->
   <?php if($successMsg): ?>
@@ -51,37 +54,48 @@ unset($_SESSION['success'], $_SESSION['error']);
   <?php endif; ?>
 
   <?php if(!empty($userPlans)): ?>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="space-y-6">
       <?php foreach($userPlans as $dayNum => $meals): ?>
-        <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <h3 class="text-xl font-bold text-emerald-700 mb-4 text-center">Day <?= $dayNum ?></h3>
-          
-          <!-- Macro Chart for the day -->
-          <?php
-            $totalProtein = $totalCarbs = $totalFat = 0;
-            foreach($meals as $meal){
-                $totalProtein += $meal['protein'];
-                $totalCarbs += $meal['carbs'];
-                $totalFat += $meal['fat'];
-            }
-          ?>
-          <div class="relative w-full h-40 mb-4">
-            <canvas id="macroChart<?= $dayNum ?>"></canvas>
+        <div class="rounded-xl overflow-hidden shadow-md border border-gray-200 bg-white">
+          <!-- Day Header -->
+          <div class="bg-emerald-600 text-white px-6 py-2 text-lg font-bold flex justify-between items-center">
+            <span>Day <?= $dayNum ?></span>
+            <?php
+              $totalProtein = array_sum(array_column($meals, 'protein'));
+              $totalCarbs   = array_sum(array_column($meals, 'carbs'));
+              $totalFat     = array_sum(array_column($meals, 'fat'));
+              $totalCalories = array_sum(array_column($meals, 'calories'));
+            ?>
+            <span class="text-sm">Calories: <?= $totalCalories ?> kcal</span>
           </div>
 
-          <?php foreach($meals as $meal): ?>
-            <div class="mb-4 p-3 border rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors duration-200">
-              <strong class="text-gray-800"><?= strtoupper($meal['meal_time']) ?></strong>: <?= htmlspecialchars($meal['meal_text']) ?>
-              <div class="mt-1 text-sm text-gray-500">
-                Protein: <?= $meal['protein'] ?>g | Carbs: <?= $meal['carbs'] ?>g | Fat: <?= $meal['fat'] ?>g | Calories: <?= $meal['calories'] ?> kcal
-              </div>
-              <!-- Meal swap button -->
-              <form method="POST" action="swap_meal.php" class="mt-2">
-                <input type="hidden" name="meal_id" value="<?= $meal['id'] ?>">
-                <button type="submit" class="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">Swap Meal</button>
-              </form>
+          <!-- Meals & Chart side by side -->
+          <div class="flex flex-col md:flex-row items-stretch">
+            <!-- Meals List -->
+            <div class="flex-1 p-4 divide-y divide-gray-200">
+              <?php foreach($meals as $meal): ?>
+                <div class="py-3 flex justify-between items-center hover:bg-gray-50 transition">
+                  <div>
+                    <strong class="text-emerald-700"><?= ucfirst($meal['meal_time']) ?>:</strong>
+                    <span class="ml-2"><?= htmlspecialchars($meal['meal_text']) ?></span>
+                    <div class="mt-1 text-sm text-gray-500">
+                      Protein: <?= $meal['protein'] ?>g | Carbs: <?= $meal['carbs'] ?>g | Fat: <?= $meal['fat'] ?>g
+                    </div>
+                  </div>
+                  <!-- Swap Button -->
+                  <form method="POST" action="swap_meal.php">
+                    <input type="hidden" name="meal_id" value="<?= $meal['id'] ?>">
+                    <button type="submit" class="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">🔄</button>
+                  </form>
+                </div>
+              <?php endforeach; ?>
             </div>
-          <?php endforeach; ?>
+
+            <!-- Chart -->
+            <div class="w-full md:w-64 p-4 flex justify-center items-center border-l bg-gray-50">
+              <canvas id="macroChart<?= $dayNum ?>" class="w-48 h-48"></canvas>
+            </div>
+          </div>
         </div>
       <?php endforeach; ?>
     </div>
