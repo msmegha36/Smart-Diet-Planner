@@ -46,63 +46,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php include 'components/head.php'; ?>
 <?php include 'components/dashboard-nav.php'; ?>
 
-<main class="bg-gray-100 w-full pt-10 px-6">
-  <h2 class="text-3xl font-bold text-emerald-600 mb-6">➕ Add Diet Plan</h2>
+<main class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-lg w-full">
+    <h2 class="text-3xl font-bold text-emerald-600 mb-8 text-center">➕ Add Diet Plan</h2>
 
-  <?php if (isset($_SESSION['success'])): ?>
-    <p class="p-3 mb-4 bg-green-100 text-green-700 rounded"><?= $_SESSION['success']; unset($_SESSION['success']); ?></p>
-  <?php elseif (isset($_SESSION['error'])): ?>
-    <p class="p-3 mb-4 bg-red-100 text-red-700 rounded"><?= $_SESSION['error']; unset($_SESSION['error']); ?></p>
-  <?php endif; ?>
+    <?php if (isset($_SESSION['success'])): ?>
+      <p class="p-3 mb-4 bg-green-100 text-green-700 rounded"><?= $_SESSION['success']; unset($_SESSION['success']); ?></p>
+    <?php elseif (isset($_SESSION['error'])): ?>
+      <p class="p-3 mb-4 bg-red-100 text-red-700 rounded"><?= $_SESSION['error']; unset($_SESSION['error']); ?></p>
+    <?php endif; ?>
 
-  <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-3xl">
-    <form method="POST" class="space-y-4">
-      <div class="grid grid-cols-2 gap-4">
+    <form method="POST" class="space-y-6 w-full">
+
+      <!-- Step 1: Preferences -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div>
-          <label class="block font-semibold">Goal</label>
-          <select name="goal" class="w-full border rounded p-2" required>
-            <option value="">-- Select --</option>
-            <option value="weight_loss">Weight Loss</option>
-            <option value="weight_gain">Weight Gain</option>
-            <option value="muscle_build">Muscle Build</option>
-            <option value="balanced">Balanced</option>
-          </select>
-        </div>
-        <div>
-          <label class="block font-semibold">Dietary</label>
-          <select name="dietary" class="w-full border rounded p-2" required>
+          <label class="block text-gray-700 font-medium mb-2">Food Preference</label>
+          <select name="dietary" required
+                  class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
             <option value="">-- Select --</option>
             <option value="veg">Vegetarian</option>
             <option value="nonveg">Non-Vegetarian</option>
-            <option value="vegan">Vegan</option>
           </select>
         </div>
+
         <div>
-          <label class="block font-semibold">Activity</label>
-          <select name="activity" class="w-full border rounded p-2" required>
+          <label class="block text-gray-700 font-medium mb-2">Fitness Goal</label>
+          <select name="goal" required
+                  class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
             <option value="">-- Select --</option>
-            <option value="sedentary">Sedentary</option>
-            <option value="light">Light</option>
-            <option value="moderate">Moderate</option>
+            <option value="weight_loss">Weight Loss</option>
+            <option value="weight_gain">Weight Gain</option>
+            <option value="muscle_build">Muscle Building</option>
+            <option value="balanced">Balanced Diet</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-gray-700 font-medium mb-2">Activity Level</label>
+          <select name="activity" required
+                  class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+            <option value="">-- Select --</option>
+            <option value="light">Light Activity</option>
+            <option value="moderate">Moderate Activity</option>
             <option value="active">Active</option>
           </select>
         </div>
+
         <div>
-          <label class="block font-semibold">Meal Type</label>
-          <select name="meal_type" class="w-full border rounded p-2" required>
+          <label class="block text-gray-700 font-medium mb-2">Preferred Meal Type</label>
+          <select name="meal_type" required
+                  class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
             <option value="">-- Select --</option>
-            <option value="3_meals">3 Meals</option>
+            <option value="3_meals">3 Meals/Day</option>
             <option value="5_small">5 Small Meals</option>
-            <option value="intermittent">Intermittent Fasting</option>
           </select>
         </div>
+      </div>
+
+      <!-- Step 2: Day & Meal Time -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label class="block font-semibold">Day Number (1-7)</label>
-          <input type="number" name="day_number" min="1" max="7" class="w-full border rounded p-2" required>
+          <label class="block text-gray-700 font-medium mb-2">Day Number (1-7)</label>
+          <input type="number" name="day_number" min="1" max="7"
+                 class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500" required>
         </div>
+
         <div>
-          <label class="block font-semibold">Meal Time</label>
-          <select name="meal_time" class="w-full border rounded p-2" required>
+          <label class="block text-gray-700 font-medium mb-2">Meal Time</label>
+          <select name="meal_time" required
+                  class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
             <option value="">-- Select --</option>
             <option value="breakfast">Breakfast</option>
             <option value="lunch">Lunch</option>
@@ -112,34 +125,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       </div>
 
+      <!-- Step 3: Meal Description -->
       <div>
-        <label class="block font-semibold">Meal Description</label>
-        <textarea name="meal_text" rows="4" class="w-full border rounded p-2" required></textarea>
+        <label class="block text-gray-700 font-medium mb-2">Meal Description</label>
+        <textarea name="meal_text" rows="4"
+                  class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500" required></textarea>
       </div>
 
-      <div class="grid grid-cols-4 gap-4">
+      <!-- Step 4: Macros -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         <div>
-          <label class="block font-semibold">Protein (g)</label>
-          <input type="number" name="protein" class="w-full border rounded p-2">
+          <label class="block text-gray-700 font-medium mb-2">Protein (g)</label>
+          <input type="number" name="protein"
+                 class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
         </div>
         <div>
-          <label class="block font-semibold">Carbs (g)</label>
-          <input type="number" name="carbs" class="w-full border rounded p-2">
+          <label class="block text-gray-700 font-medium mb-2">Carbs (g)</label>
+          <input type="number" name="carbs"
+                 class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
         </div>
         <div>
-          <label class="block font-semibold">Fat (g)</label>
-          <input type="number" name="fat" class="w-full border rounded p-2">
+          <label class="block text-gray-700 font-medium mb-2">Fat (g)</label>
+          <input type="number" name="fat"
+                 class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
         </div>
         <div>
-          <label class="block font-semibold">Calories</label>
-          <input type="number" name="calories" class="w-full border rounded p-2">
+          <label class="block text-gray-700 font-medium mb-2">Calories</label>
+          <input type="number" name="calories"
+                 class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
         </div>
       </div>
 
-      <div class="flex justify-end gap-3 mt-4">
-        <a href="dietplans.php" class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Back</a>
-        <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">Add Plan</button>
+      <!-- Buttons -->
+      <div class="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+        <a href="dietplans.php" class="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 text-center">Back</a>
+        <button type="submit"
+                class="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center">Add Plan</button>
       </div>
+
     </form>
   </div>
 </main>
+</div>

@@ -1,3 +1,6 @@
+
+
+</div>
 <!-- Admin Footer -->
 <footer class="bg-gray-900 text-gray-300 py-10  border-t border-gray-700">
   <div class="container mx-auto px-6">

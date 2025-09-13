@@ -33,7 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['nut
 }
 
 // Fetch Nutritionists
-$sql = "SELECT * FROM nutritionists ORDER BY created_at DESC";
+// Fetch only pending Nutritionists
+$sql = "SELECT * FROM nutritionists WHERE status = 'pending' ORDER BY created_at DESC";
+
 $result = $connection->query($sql);
 ?>
 

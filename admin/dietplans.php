@@ -38,9 +38,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_id'])) {
     exit();
 }
 
-// Fetch all diet plans
-$sql = "SELECT * FROM diet_plans ORDER BY id DESC";
-$result = $connection->query($sql);
+// ✅ Fetch distinct goals for filter dropdown
+$filterSql = "SELECT DISTINCT goal FROM diet_plans ORDER BY goal ASC";
+$filterResult = $connection->query($filterSql);
+$goals = [];
+if ($filterResult->num_rows > 0) {
+    while($row = $filterResult->fetch_assoc()) {
+        $goals[] = $row['goal'];
+    }
+}
+
+// Get selected goal from GET (default first goal if none)
+$selectedGoal = isset($_GET['goal']) ? $_GET['goal'] : ($goals[0] ?? '');
+
+// ✅ Fetch diet plans based on selected goal
+if (!empty($selectedGoal)) {
+    $stmt = $connection->prepare("SELECT * FROM diet_plans WHERE goal = ? ORDER BY id DESC");
+    $stmt->bind_param("s", $selectedGoal);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} else {
+    $result = $connection->query("SELECT * FROM diet_plans ORDER BY id DESC");
+}
 ?>
 
 <?php include 'components/head.php'; ?>
@@ -48,6 +67,23 @@ $result = $connection->query($sql);
 
 <main class="bg-gray-100 w-full pt-10 px-6">
   <h2 class="text-3xl font-bold text-emerald-600 mb-6">🥗 Manage Diet Plans</h2>
+
+  <!-- Filter Dropdown -->
+  <?php if(count($goals) > 0): ?>
+    <div class="mb-4 flex items-center gap-2">
+      <form method="GET" class="flex items-center gap-2">
+        <label class="font-semibold text-gray-700">Filter by Goal:</label>
+        <select name="goal" class="border rounded p-2">
+          <?php foreach($goals as $goal): ?>
+            <option value="<?= htmlspecialchars($goal); ?>" <?= $goal === $selectedGoal ? 'selected' : '' ?>>
+              <?= htmlspecialchars($goal); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <button type="submit" class="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700">Apply</button>
+      </form>
+    </div>
+  <?php endif; ?>
 
   <?php if ($result->num_rows > 0): ?>
     <div class="overflow-x-auto bg-white rounded-xl shadow-lg">
@@ -94,12 +130,14 @@ $result = $connection->query($sql);
       </table>
     </div>
   <?php else: ?>
-    <p class="text-gray-500">No diet plans found.</p>
+    <p class="text-gray-500">No diet plans found for selected goal.</p>
   <?php endif; ?>
 </main>
 
 <!-- Modal -->
 <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div id="editModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50">
+
   <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-2xl relative">
     <h3 class="text-xl font-bold mb-4">Update Diet Plan</h3>
     <form method="POST" id="editForm" class="space-y-4">
