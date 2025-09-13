@@ -16,8 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
     $meal_id = intval($_POST['meal_id']);
 
     // Get current meal details
-    $meal_res = mysqli_query($connection, "SELECT * FROM user_diet_plans WHERE id='$meal_id' AND user_id='$user_id'");
-    $meal = mysqli_fetch_assoc($meal_res);
+    $meal_stmt = $connection->prepare("SELECT * FROM user_diet_plans WHERE id=? AND user_id=?");
+    $meal_stmt->bind_param("ii", $meal_id, $user_id);
+    $meal_stmt->execute();
+    $meal_res = $meal_stmt->get_result();
+    $meal = $meal_res->fetch_assoc();
+    $meal_stmt->close();
 
     if (!$meal) {
         $_SESSION['error'] = "Invalid meal selected.";
@@ -25,26 +29,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
         exit();
     }
 
-    // Hash current meal text
     $currentHash = hash('sha256', $meal['meal_text']);
 
-    // Fetch an alternative meal that is not the same as the current one
-    $alt_res = mysqli_query($connection, "
-        SELECT * FROM meal_swaps 
-        WHERE meal_hash='$currentHash' AND alt_hash != '$currentHash' 
-        ORDER BY RAND() LIMIT 1
+    // Get dietary type of the current meal
+    $diet_stmt = $connection->prepare("SELECT dietary FROM diet_plans WHERE meal_text=? LIMIT 1");
+    $diet_stmt->bind_param("s", $meal['meal_text']);
+    $diet_stmt->execute();
+    $diet_row = $diet_stmt->get_result()->fetch_assoc();
+    $diet_stmt->close();
+
+    $dietary = $diet_row['dietary'] ?? null;
+
+    if (!$dietary) {
+        $_SESSION['error'] = "Cannot determine dietary type of the selected meal.";
+        header("Location: user_dietPlan.php");
+        exit();
+    }
+
+    // Fetch alternative meals with SAME dietary type and similar macros (tolerance)
+    $macroTolerance = [
+        'protein' => 2,  // ±2g
+        'carbs'   => 5,  // ±5g
+        'fat'     => 2,  // ±2g
+        'calories'=> 30  // ±30 kcal
+    ];
+
+    $stmt = $connection->prepare("
+        SELECT * FROM meal_swaps
+        WHERE meal_hash=? 
+          AND alternative_text != ?
+          AND ABS(protein - ?) <= ?
+          AND ABS(carbs - ?) <= ?
+          AND ABS(fat - ?) <= ?
+          AND ABS(calories - ?) <= ?
+          AND dietary=?
+        ORDER BY RAND()
+        LIMIT 1
     ");
 
-    if (mysqli_num_rows($alt_res) > 0) {
-        $alt = mysqli_fetch_assoc($alt_res);
+   $stmt->bind_param(
+    "ssiiiiiiiis",
+    $currentHash,
+    $meal['meal_text'],
+    $meal['protein'], $macroTolerance['protein'],
+    $meal['carbs'],   $macroTolerance['carbs'],
+    $meal['fat'],     $macroTolerance['fat'],
+    $meal['calories'],$macroTolerance['calories'],
+    $dietary
+);
 
-        // Update user's plan with the alternative meal
-        $stmt = $connection->prepare("
+
+    $stmt->execute();
+    $alt_res = $stmt->get_result();
+
+    if ($alt_res && $alt_res->num_rows > 0) {
+        $alt = $alt_res->fetch_assoc();
+
+        // Update user's plan
+        $update_stmt = $connection->prepare("
             UPDATE user_diet_plans
             SET meal_text=?, protein=?, carbs=?, fat=?, calories=?
             WHERE id=? AND user_id=?
         ");
-        $stmt->bind_param(
+        $update_stmt->bind_param(
             "siiiiii",
             $alt['alternative_text'],
             $alt['protein'],
@@ -55,16 +102,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
             $user_id
         );
 
-        if ($stmt->execute()) {
-            $_SESSION['success'] = "Meal swapped successfully!";
+        if ($update_stmt->execute()) {
+            $_SESSION['success'] = "Meal swapped successfully with a matching alternative!";
         } else {
-            $_SESSION['error'] = "Error swapping meal: " . $stmt->error;
+            $_SESSION['error'] = "Error swapping meal: " . $update_stmt->error;
         }
-        $stmt->close();
+        $update_stmt->close();
     } else {
-        $_SESSION['error'] = "⚠️ No alternative swap available for this meal.";
+        $_SESSION['error'] = "⚠️ No alternative swap available with similar macros and dietary type.";
     }
 
+    $stmt->close();
     header("Location: user_dietPlan.php");
     exit();
 }
