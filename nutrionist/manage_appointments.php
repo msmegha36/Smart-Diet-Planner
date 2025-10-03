@@ -13,30 +13,11 @@ if (!isset($_SESSION['nutritionist_id'])) {
 
 $nutritionist_id = $_SESSION['nutritionist_id'];
 
-// Handle approve/reject actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['appointment_id'])) {
-    $appointment_id = intval($_POST['appointment_id']);
-    $action = $_POST['action'];
-
-    if ($action === 'approve') {
-        $update = $connection->prepare("UPDATE appointments SET status = 'confirmed' WHERE id = ? AND nutritionist_id = ?");
-        $update->bind_param("ii", $appointment_id, $nutritionist_id);
-        $update->execute();
-    } elseif ($action === 'reject') {
-        $delete = $connection->prepare("DELETE FROM appointments WHERE id = ? AND nutritionist_id = ?");
-        $delete->bind_param("ii", $appointment_id, $nutritionist_id);
-        $delete->execute();
-    }
-
-    header("Location: appointments.php"); // Refresh to see changes
-    exit();
-}
-
-// Fetch only pending appointments for this nutritionist
+// Fetch only approved (confirmed) appointments for this nutritionist
 $sql = "SELECT a.*, r.name AS user_name, r.email AS user_email, a.phone AS user_phone
         FROM appointments a
         JOIN reg r ON a.user_id = r.id
-        WHERE a.nutritionist_id = ? AND a.status='pending'
+        WHERE a.nutritionist_id = ? AND a.status='confirmed'
         ORDER BY a.appointment_date DESC, a.appointment_time DESC";
 
 $stmt = $connection->prepare($sql);
@@ -48,7 +29,7 @@ $result = $stmt->get_result();
 <?php include 'components/dashboard-nav.php'; ?>
 
 <main class="bg-white w-full pt-32 px-6">
-  <h2 class="text-3xl font-bold text-emerald-700 mb-6">🕒 Pending Appointments</h2>
+  <h2 class="text-3xl font-bold text-emerald-700 mb-6">✅ Approved Appointments</h2>
 
   <?php if ($result->num_rows > 0): ?>
     <div class="overflow-x-auto bg-white rounded-xl shadow-lg">
@@ -61,7 +42,6 @@ $result = $stmt->get_result();
             <th class="px-4 py-3 text-left">Date</th>
             <th class="px-4 py-3 text-left">Time</th>
             <th class="px-4 py-3 text-left">Notes</th>
-            <th class="px-4 py-3 text-left">Action</th>
             <th class="px-4 py-3 text-left">Booked On</th>
           </tr>
         </thead>
@@ -74,20 +54,6 @@ $result = $stmt->get_result();
               <td class="px-4 py-3"><?= htmlspecialchars($row['appointment_date']); ?></td>
               <td class="px-4 py-3"><?= htmlspecialchars(substr($row['appointment_time'], 0, 5)); ?></td>
               <td class="px-4 py-3"><?= $row['notes'] ? htmlspecialchars($row['notes']) : '—'; ?></td>
-              <td class="px-4 py-3">
-                <form method="POST" class="flex gap-2">
-                  <input type="hidden" name="appointment_id" value="<?= $row['id']; ?>">
-                  <button type="submit" name="action" value="approve"
-                    class="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 text-sm">
-                    ✅ Approve
-                  </button>
-                  <button type="submit" name="action" value="reject"
-                    class="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm"
-                    onclick="return confirm('Are you sure you want to reject this appointment?');">
-                    ❌ Reject
-                  </button>
-                </form>
-              </td>
               <td class="px-4 py-3 text-sm text-gray-500"><?= htmlspecialchars($row['created_at']); ?></td>
             </tr>
           <?php endwhile; ?>
@@ -95,6 +61,6 @@ $result = $stmt->get_result();
       </table>
     </div>
   <?php else: ?>
-    <p class="text-gray-500">No pending appointments at the moment.</p>
+    <p class="text-gray-500">No approved appointments yet.</p>
   <?php endif; ?>
 </main>

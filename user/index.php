@@ -31,7 +31,43 @@ $diet = mysqli_fetch_assoc($diet_res);
 // Fetch progress history
 $history_sql = "SELECT * FROM progress_history WHERE user_id='$user_id' ORDER BY updated_at DESC";
 $history_res = mysqli_query($connection, $history_sql);
+
+
+$bmi = 0;
+$bmi_msg = "";
+if (!empty($user['height']) && !empty($user['weight'])) {
+    $height_m = $user['height'] / 100; // convert cm to m
+    $bmi = $user['weight'] / ($height_m * $height_m);
+
+    if ($bmi < 18.5) {
+        $bmi_msg = "Underweight";
+    } elseif ($bmi < 24.9) {
+        $bmi_msg = "Normal";
+    } elseif ($bmi < 29.9) {
+        $bmi_msg = "Overweight";
+    } else {
+        $bmi_msg = "Obese";
+    }
+}
+
+
+$alert_msg = "";
+if ($bmi > 0) {
+    if ($bmi < 18.5 && $user['goal'] === 'weight_loss') {
+        $alert_msg = "⚠️ Your BMI indicates Underweight but your goal is Weight Loss. Please reconsider.";
+    } elseif ($bmi > 25 && $user['goal'] === 'weight_gain') {
+        $alert_msg = "⚠️ Your BMI indicates Overweight but your goal is Weight Gain. Please reconsider.";
+    } elseif ($bmi > 30 && $user['goal'] === 'muscle_build' && $user['activity'] === 'light') {
+        $alert_msg = "⚠️ Your BMI is in Obese range. Muscle building with low activity may not be safe.";
+    }
+}
+
+
+
 ?>
+
+
+
 <?php include 'components/head.php'; ?>
 <?php include 'components/navbar.php'; ?>
 
@@ -58,6 +94,13 @@ $history_res = mysqli_query($connection, $history_sql);
       <canvas id="calorieChart"></canvas>
     </div>
   </section>
+
+ <?php  if(!empty($alert_msg)): ?>
+  <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    <?= $alert_msg ?>
+  </div>
+<?php endif; ?>
+
 
   <!-- Diet Plan Section 
   <section class="bg-white rounded-xl shadow-lg p-6 mb-8">

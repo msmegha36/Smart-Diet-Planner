@@ -139,7 +139,7 @@ $result = $stmt->get_result();
         <thead class="bg-gray-900 text-white">
           <tr>
             <th class="px-4 py-3 text-left">Dietary</th>
-            <th class="px-4 py-3 text-left">Original Meal</th>
+            <th class="px-4 py-3 text-left">Original Meal Hash</th>
             <th class="px-4 py-3 text-left">Alternative Meal</th>
             <th class="px-4 py-3 text-left">Macros</th>
             <th class="px-4 py-3 text-left">Action</th>

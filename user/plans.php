@@ -110,10 +110,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
                         $insertStmt->execute();
                     }
                 }
-
                 $insertStmt->close();
+
+                // ✅ Update reg table with latest user choices
+                $goal      = $_POST['goal'] ?? '';
+                $dietary   = $_POST['food'] ?? '';
+                $activity  = $_POST['activity'] ?? '';
+                $meal_type = $_POST['meal_type'] ?? '';
+
+                if(!empty($goal) && !empty($dietary) && !empty($activity) && !empty($meal_type)){
+                    $updateReg = $connection->prepare("
+                        UPDATE reg 
+                        SET goal=?, dietary=?, activity=?, meal_type=? 
+                        WHERE id=?
+                    ");
+                    $updateReg->bind_param("ssssi", $goal, $dietary, $activity, $meal_type, $user_id);
+                    $updateReg->execute();
+                    $updateReg->close();
+                }
+
                 $connection->commit();
-                $success = "✅ Plan saved/updated successfully!";
+                $success = "✅ Plan saved/updated successfully and preferences updated!";
                 $showSaveButton = false;
             } catch (Exception $e) {
                 $connection->rollback();
@@ -123,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
         }
     }
 }
+
 
 ?>
 
@@ -144,7 +162,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
   <section class="bg-white rounded-xl shadow-lg p-6 mb-8">
     <h2 class="text-2xl font-bold text-emerald-700 mb-6">Personalized Nutrition Plan</h2>
     <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      
+    
+
+
+
       <!-- Form fields -->
       <div>
         <label class="block text-gray-700 font-medium">Activity Level</label>
@@ -187,13 +208,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
 
       <!-- Save Plan button at the bottom, only if plan loaded -->
       <?php if($showSaveButton): ?>
-        <div class="md:col-span-2">
-          <input type="hidden" name="plan" value='<?= htmlspecialchars(json_encode($loadedPlan)) ?>'>
-          <button type="submit" name="save_plan" class="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
-            💾 Save Plan
-          </button>
-        </div>
-      <?php endif; ?>
+  <div class="md:col-span-2">
+    <input type="hidden" name="plan" value='<?= htmlspecialchars(json_encode($loadedPlan)) ?>'>
+    <input type="hidden" name="goal" value="<?= htmlspecialchars($goal) ?>">
+    <input type="hidden" name="food" value="<?= htmlspecialchars($dietary) ?>">
+    <input type="hidden" name="activity" value="<?= htmlspecialchars($activity) ?>">
+    <input type="hidden" name="meal_type" value="<?= htmlspecialchars($meal_type) ?>">
+    <button type="submit" name="save_plan" class="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+      💾 Save Plan
+    </button>
+  </div>
+<?php endif; ?>
+
 
     </form>
   </section>

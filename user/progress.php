@@ -20,21 +20,46 @@ while ($row = mysqli_fetch_assoc($historyQuery)) {
     $dates[]   = date("M d", strtotime($row['updated_at']));
 }
 
-// Fetch latest user data for BMI
+// ✅ Fetch latest user data for BMI directly from reg table
 $user = mysqli_fetch_assoc(mysqli_query($connection, "SELECT weight, height FROM reg WHERE id='$user_id'"));
 
-// Calculate latest BMI
-$latestWeight = end($weights) ?: $user['weight'];
+// Calculate BMI
+$latestWeight = $user['weight'];  // always take from reg
 $height_m = $user['height'] / 100;
 $latestBMI = $height_m > 0 ? round($latestWeight / ($height_m * $height_m), 1) : 0;
 
 // Determine BMI category
 $bmiCategory = "Normal";
-if ($latestBMI < 18.5) $bmiCategory = "Underweight";
-elseif ($latestBMI < 24.9) $bmiCategory = "Normal";
-elseif ($latestBMI < 29.9) $bmiCategory = "Overweight";
-else $bmiCategory = "Obese";
+if ($latestBMI < 18.5) {
+    $bmiCategory = "Underweight";
+} elseif ($latestBMI < 24.9) {
+    $bmiCategory = "Normal";
+} elseif ($latestBMI < 29.9) {
+    $bmiCategory = "Overweight";
+} else {
+    $bmiCategory = "Obese";
+}
+
+
+// Feedback message based on BMI category
+$progressMessage = "";
+$progressClass = "";
+
+if ($bmiCategory == "Underweight") {
+    $progressMessage = "Your BMI shows you are underweight. Consider a balanced diet to gain healthy weight.";
+    $progressClass = "bg-blue-100 text-blue-700";
+} elseif ($bmiCategory == "Normal") {
+    $progressMessage = "Great job! Your weight and BMI are in the healthy range. Keep maintaining this lifestyle!";
+    $progressClass = "bg-green-100 text-green-700";
+} elseif ($bmiCategory == "Overweight") {
+    $progressMessage = "Your BMI shows you are overweight. Try focusing on a healthy diet and regular activity.";
+    $progressClass = "bg-yellow-100 text-yellow-700";
+} else {
+    $progressMessage = "Your BMI indicates obesity. It’s important to take steps for weight management.";
+    $progressClass = "bg-red-100 text-red-700";
+}
 ?>
+
 
 <?php include 'components/head.php'; ?>
 <?php include 'components/navbar.php'; ?>
@@ -50,6 +75,11 @@ else $bmiCategory = "Obese";
     </div>
     <p class="mt-3 text-gray-600 text-sm">Latest weight: <strong><?= $latestWeight ?> kg</strong></p>
   </section>
+  <p class="mt-4 p-4 rounded-lg font-semibold text-center <?= $progressClass ?>">
+  <?= $progressMessage ?> <br>
+  (Current Weight: <strong><?= $latestWeight ?> kg</strong>, BMI: <strong><?= $latestBMI ?></strong>)
+</p>
+
 
   <!-- BMI Doughnut Chart -->
   <section class="bg-white p-6 rounded-xl shadow-lg">
