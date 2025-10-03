@@ -77,16 +77,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <?php endif; ?>
 
     <!-- Form -->
-    <form id="loginForm" action="" method="POST" class="space-y-6" novalidate>
+    <form id="loginForm" action="" method="POST" class="space-y-6" >
       <div>
         <label class="block text-gray-700 font-medium mb-2">Email</label>
         <input type="email" id="email" name="email" required
-          class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+          class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500"  
+          oninvalid="InvalidMsg4(this);" oninput="InvalidMsg4(this);" >
       </div>
       <div>
         <label class="block text-gray-700 font-medium mb-2">Password</label>
-        <input type="password" id="password" name="password" required
-          class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
+      <input type="password" id="password" name="password" required
+    class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500" 
+    minlength="3" maxlength="16" oninvalid="InvalidMsg2(this);" oninput="InvalidMsg2(this);" >
       </div>
 
       <!-- Submit -->
@@ -103,17 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <hr class="flex-1 border-gray-300">
     </div>
 
-    <!-- Social Login -->
-    <div class="flex justify-center space-x-5">
-      <button class="flex items-center space-x-3 px-5 py-2.5 border rounded-lg hover:bg-gray-50">
-        <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" class="w-6 h-6">
-        <span class="text-base">Google</span>
-      </button>
-      <button class="flex items-center space-x-3 px-5 py-2.5 border rounded-lg hover:bg-gray-50">
-        <img src="https://cdn-icons-png.flaticon.com/512/5968/5968764.png" class="w-6 h-6">
-        <span class="text-base">Facebook</span>
-      </button>
-    </div>
+ 
 
     <!-- Sign Up -->
     <p class="text-center text-gray-600 text-base mt-8">
@@ -137,7 +129,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   }
 
   
+
+
+
+// --- FIXED PASSWORD VALIDATION ---
+  function InvalidMsg2(textbox) {
+    // MUST clear validity first on input to allow subsequent checks
+    textbox.setCustomValidity(''); 
+
+    if (textbox.value === '') {
+        textbox.setCustomValidity('A password is necessary!');
+    } else if (textbox.value.length <= 3) { 
+        textbox.setCustomValidity('Please enter at least 4 characters!');
+    }
+    // No 'else' block needed, as we cleared it at the start.
+    return true;
+  }
     
+  // --- FIXED EMAIL VALIDATION ---
+  function InvalidMsg4(textbox) {
+    // MUST clear validity first on input to allow subsequent checks
+    textbox.setCustomValidity('');
+
+    if (textbox.validity.valueMissing) {
+        textbox.setCustomValidity('Entering an email address is necessary!');
+    } else if (textbox.validity.typeMismatch) {
+        textbox.setCustomValidity('Please enter a valid email address!');
+    }
+    // No 'else' block needed, as we cleared it at the start.
+    return true;
+  }
   
 </script>
 

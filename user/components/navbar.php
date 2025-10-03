@@ -1,8 +1,9 @@
 <body class="bg-gray-100">
 
-<div class="flex min-h-screen">
+<div class="md:flex min-h-screen">
     <!-- Sidebar -->
-  <aside class="w-64 bg-emerald-700 text-white flex flex-col">
+  <aside class="hidden md:flex w-64 bg-emerald-700 text-white flex-col">
+
     <div class="p-6 text-2xl font-bold border-b border-emerald-600 flex items-center gap-2">
       <i class="fas fa-leaf"></i>  <a href="../home/index.php">Diet Planner</a>
     </div>
@@ -37,3 +38,4 @@
       </a>
     </div>
   </aside>
+
