@@ -1,27 +1,57 @@
 <?php
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 include(__DIR__ . '/../config/db_conn.php');
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_SESSION['user_id'])) {
-    $user_id = $_SESSION['user_id'];
+// Check if the request is a POST and the user is logged in
+if ($_SERVER["REQUEST_METHOD"] !== "POST" || !isset($_SESSION['user_id'])) {
+    header("Location: ../home/login.php");
+    exit();
+}
 
-    $name   = mysqli_real_escape_string($connection, $_POST['name']);
-    $email  = mysqli_real_escape_string($connection, $_POST['email']);
-    $age    = mysqli_real_escape_string($connection, $_POST['age']);
-    $height = mysqli_real_escape_string($connection, $_POST['height']);
-    $weight = mysqli_real_escape_string($connection, $_POST['weight']);
+$user_id = $_SESSION['user_id'];
 
-    // Save old data into history before updating
-    $old_data = mysqli_query($connection, "SELECT height, weight FROM reg WHERE id='$user_id'");
-    $old = mysqli_fetch_assoc($old_data);
-    mysqli_query($connection, "INSERT INTO progress_history (user_id, weight, height) VALUES ('$user_id', '{$old['weight']}', '{$old['height']}')");
+// 1. Sanitize and retrieve ALL input fields, including the new 'health_issues'
+$name          = mysqli_real_escape_string($connection, $_POST['name']);
+$email         = mysqli_real_escape_string($connection, $_POST['email']);
+$age           = mysqli_real_escape_string($connection, $_POST['age']);
+$height        = mysqli_real_escape_string($connection, $_POST['height']);
+$weight        = mysqli_real_escape_string($connection, $_POST['weight']);
+$health_issues = mysqli_real_escape_string($connection, $_POST['health_issues']); // New field
 
-    // Update user info
-    $update = "UPDATE reg SET name='$name', email='$email', age='$age', height='$height', weight='$weight' WHERE id='$user_id'";
-    if (mysqli_query($connection, $update)) {
-        echo "<script>alert('Profile updated successfully ✅'); window.location='index.php';</script>";
-    } else {
-        echo "<script>alert('Error: " . mysqli_error($connection) . "');</script>";
+// 2. Update user info in the main 'reg' table
+$update_reg_sql = "UPDATE reg SET 
+                   name='$name', 
+                   email='$email', 
+                   age='$age', 
+                   height='$height', 
+                   weight='$weight',
+                   health_issues='$health_issues' 
+                   WHERE id='$user_id'";
+
+if (mysqli_query($connection, $update_reg_sql)) {
+    // 3. Log the NEW profile state (weight, height, and health issue) into progress_history
+    // This correctly logs the data the user just submitted, assuming the 
+    // progress_history table has been updated to include a 'health_issues' column.
+    $insert_history_sql = "INSERT INTO progress_history (user_id, weight, height, health_issues) 
+                           VALUES ('$user_id', '$weight', '$height', '$health_issues')";
+                           
+    if (!mysqli_query($connection, $insert_history_sql)) {
+        error_log("Progress history log failed: " . mysqli_error($connection));
+        // Redirect with a warning if history failed, but main profile succeeded
+        header("Location: profile.php?status=warning");
+        exit();
     }
+
+    // Redirect back to the profile page on success
+    header("Location: index.php?status=success");
+    exit();
+} else {
+    // Handle error
+    error_log("Profile update failed: " . mysqli_error($connection));
+    header("Location: index.php?status=error");
+    exit();
 }
 ?>
