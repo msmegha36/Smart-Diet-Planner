@@ -79,15 +79,43 @@ switch ($goal) {
         break;
 }
 
-// Health Issues Text
+// Ensure minimum calorie is sensible (Safety net)
+$min_cal_target = max($min_cal_target, ($gender === 'male' ? 1500 : 1200));
+
+// --- Health Issue Management Timeline (NEW LOGIC) ---
 $health_issues = htmlspecialchars($user['health_issues'] ?? 'None specified.');
 $health_advice = match ($health_issues) {
     'None specified.' => 'Continue with your regular plan. Focus on consistent hydration and listening to your body.',
     default => 'Given your specific health focus, adherence to meal ingredients and portion sizes is <strong class="text-red-600">crucial</strong>. Strictly monitor ingredients to prevent complications.'
 };
 
-// Ensure minimum calorie is sensible (Safety net, though TDEE calculation should prevent extremes)
-$min_cal_target = max($min_cal_target, ($gender === 'male' ? 1500 : 1200));
+$timeline_estimate = "";
+$disclaimer = '<span class="text-sm text-gray-500 italic">Note: This is a model-based estimate assuming strict adherence and is not medical advice. Consult a healthcare professional.</span>';
+
+if ($user['health_issues'] && $user['health_issues'] !== 'None') {
+    $issue = $user['health_issues'];
+    
+    // Default estimate for complex metabolic/hormonal issues
+    $estimate_text = "3 to 6 months"; 
+
+    if ($issue === 'Obesity' && $goal === 'weight_loss') {
+        // Estimate target loss for significant progress (e.g., 15% of body weight)
+        $target_loss_kg = round($weight * 0.15, 1);
+        // Healthy rate: ~0.75 kg per week
+        $weeks = ceil($target_loss_kg / 0.75);
+        $months = max(3, ceil($weeks / 4.3)); // Minimum 3 months
+        
+        $estimate_text = "Approximately **{$months} months** to achieve significant weight reduction ($target_loss_kg kg) for better management.";
+    } elseif (in_array($issue, ['Diabetes', 'Hypertension', 'Heart Disease'])) {
+        $estimate_text = "**6 to 12 months** of consistent adherence for stabilization of key health markers (e.g., A1C, blood pressure).";
+    } elseif (in_array($issue, ['Thyroid Disorder', 'PCOS / PCOD'])) {
+        $estimate_text = "**3 to 6 months** of dedicated dietary focus to see symptomatic improvements.";
+    }
+
+    $timeline_estimate = "Based on your plan and health issue (**{$issue}**), significant progress toward management is estimated to take: **{$estimate_text}**.";
+}
+// --- END Health Issue Management Timeline ---
+
 
 // Fetch user diet plans, using a comprehensive meal time order
 $plans_res = mysqli_query($connection, "
@@ -103,6 +131,22 @@ while ($row = mysqli_fetch_assoc($plans_res)) {
     if(!isset($userPlans[$day])) $userPlans[$day] = [];
     $userPlans[$day][] = $row;
 }
+
+// --- Calorie Consistency Check (NEW LOGIC) ---
+$all_plans_too_high = !empty($userPlans); // Assume true if plans exist initially
+$max_cal_target_check = $max_cal_target; 
+
+foreach ($userPlans as $dayNum => $meals) {
+    $totalCalories = array_sum(array_column($meals, 'calories'));
+    
+    // If ANY day is within or below the target max, the flag is false, and we can stop checking.
+    if ($totalCalories <= $max_cal_target_check) {
+        $all_plans_too_high = false;
+        break;
+    }
+}
+// --- END Calorie Consistency Check ---
+
 
 // Capture session messages
 $successMsg = $_SESSION['success'] ?? '';
@@ -124,6 +168,20 @@ unset($_SESSION['success'], $_SESSION['error']);
   <?php if($errorMsg): ?>
     <div class="mb-6 p-4 bg-red-100 border border-red-400 text-red-800 rounded-lg font-medium shadow-md">
       <?= htmlspecialchars($errorMsg) ?>
+    </div>
+  <?php endif; ?>
+  
+  <!-- Calorie Consistency Alert (NEW ALERT SECTION) -->
+  <?php if ($all_plans_too_high): ?>
+    <div class="mb-6 p-6 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg shadow-xl flex flex-col md:flex-row justify-between items-center">
+        <div>
+            <h4 class="font-extrabold text-xl mb-1">Plan Calorie Warning!</h4>
+            <p class="text-lg">All your current plan days have total calories **higher** than your target maximum (<?= $max_cal_target ?> kcal). </p>
+            <p class="mt-1 font-semibold">We recommend generating a new plan to better meet your **<?= $goal_text ?>** goal.</p>
+        </div>
+        <button onclick="window.location='generate_plan.php'" class="mt-4 md:mt-0 px-6 py-3 bg-red-600 text-white font-bold rounded-full shadow-md hover:bg-red-700 transition duration-300">
+            Generate New Plan
+        </button>
     </div>
   <?php endif; ?>
   
@@ -170,12 +228,16 @@ unset($_SESSION['success'], $_SESSION['error']);
     
     <!-- Health Issue & Advice -->
     <div class="mt-4 p-4 bg-gray-100 rounded-lg border border-gray-200">
-        <p class="font-semibold text-gray-700 mb-1">Health Issues Reported:</p>
-        <p class="text-base text-gray-600 italic">"<?= $health_issues ?>"</p>
+        <p class="font-semibold text-gray-700 mb-1">Health Issues Reported: <strong class="text-red-600"><?= $health_issues ?></strong></p>
+        <p class="text-base text-emerald-600 font-medium"><?= $health_advice ?></p>
+        
+        <?php if($timeline_estimate): ?>
         <div class="mt-3 pt-3 border-t border-gray-300">
-            <p class="font-semibold text-gray-700 mb-1">Dietary Advice:</p>
-            <p class="text-base text-emerald-600 font-medium"><?= $health_advice ?></p>
+            <p class="font-semibold text-gray-700 mb-1">Estimated Improvement Timeline:</p>
+            <p class="text-base text-indigo-700 font-medium"><?= $timeline_estimate ?></p>
+            <?= $disclaimer ?>
         </div>
+        <?php endif; ?>
     </div>
   </div>
   <!-- --- END USER METRICS & GOAL CARD --- -->
@@ -329,9 +391,6 @@ document.addEventListener("DOMContentLoaded", function() {
         plugins: {
           legend: { position: 'bottom' },
           tooltip: { enabled: true },
-          // This is a placeholder for a center label, as DoughnutLabel plugin might not be available
-          // If a custom plugin is used, it should display the total calories here.
-          // For now, relying on tooltip and legend.
         }
       }
     });
