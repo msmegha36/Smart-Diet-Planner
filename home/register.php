@@ -13,7 +13,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email        = mysqli_real_escape_string($connection, $_POST['email']);
     $pass         = mysqli_real_escape_string($connection, $_POST['password']);
     $gender       = mysqli_real_escape_string($connection, $_POST['gender']);
-    $health_issues= mysqli_real_escape_string($connection, $_POST['health_issues']);
+    //$health_issues= mysqli_real_escape_string($connection, $_POST['health_issues']);
+    $health_issues = isset($_POST['health_issues']) ? implode(', ', $_POST['health_issues']) : 'None';
+$health_issues = mysqli_real_escape_string($connection, $health_issues);
+
     $dietary      = mysqli_real_escape_string($connection, $_POST['food']); // updated field name
     $goal         = mysqli_real_escape_string($connection, $_POST['goal']);
     $activity     = mysqli_real_escape_string($connection, $_POST['activity']);
@@ -37,48 +40,125 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         VALUES 
         ('$name', '$age', '$weight', '$height', '$email', '$hashed_pass', '$gender', '$health_issues', '$dietary', '$goal', '$activity', '$meal_type', '$type')";
     
-    if (mysqli_query($connection, $sql)) {
-        $user_id = mysqli_insert_id($connection);
 
-        // Generate diet plan for user from diet_plans table
-        for($day=1; $day<=7; $day++){
-            $stmt = $connection->prepare("
-                SELECT * FROM diet_plans 
-                WHERE goal=? AND dietary=? AND activity=? AND meal_type=? AND day_number=?
-            ");
-            $stmt->bind_param("ssssi", $goal, $dietary, $activity, $meal_type, $day);
-            $stmt->execute();
-            $res_plan = $stmt->get_result();
 
-            while($meal = $res_plan->fetch_assoc()){
-                // Insert into user_diet_plans
-                $insert = $connection->prepare("
-                    INSERT INTO user_diet_plans
-                    (user_id, day_number, meal_time, meal_text, protein, carbs, fat, calories)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $insert->bind_param(
-    "iissiiii",
-    $user_id,
-    $meal['day_number'],
-    $meal['meal_time'],
-    $meal['meal_text'],
-    $meal['protein'],
-    $meal['carbs'],
-    $meal['fat'],
-    $meal['calories']
-);
+if (mysqli_query($connection, $sql)) {
+    $user_id = mysqli_insert_id($connection);
 
-                $insert->execute();
-                $insert->close();
-            }
-            $stmt->close();
-        }
-
-        echo "<script>alert('Successfully Registered ✅. Your diet plan is ready!'); window.location='login.php';</script>";
-    } else {
-        echo "<script>alert('Error: " . mysqli_error($connection) . "');</script>";
+    // 🧩 Basic Calorie & BMI Setup
+    $bmi = $weight / pow($height / 100, 2);
+    $targetCalories = 10 * $weight + 6.25 * $height - 5 * $age + ($gender === 'male' ? 5 : -161);
+    
+    // Adjust based on goal
+    if ($goal === 'weight_loss') {
+        $targetCalories -= 400;
+    } elseif ($goal === 'weight_gain') {
+        $targetCalories += 400;
     }
+    
+    // Adjust based on activity
+    switch ($activity) {
+        case 'sedentary': $targetCalories *= 1.2; break;
+        case 'light': $targetCalories *= 1.375; break;
+        case 'moderate': $targetCalories *= 1.55; break;
+        case 'active': $targetCalories *= 1.725; break;
+        default: $targetCalories *= 1.2; break;
+    }
+    
+    $targetCalories = round($targetCalories);
+    $recommendedGoal = $goal;
+    $recommendedDietary = $dietary;
+    $recommendationNote = "";
+
+    // ⚕️ Smart Health Adjustment
+    $health = strtolower($health_issues);
+
+    // Diabetes — lower carbs, prefer veg or low-carb
+    if (str_contains($health, 'diabetes')) {
+        $recommendedDietary = 'veg';
+        $recommendationNote .= "For Diabetes, we’ve switched to a low-carb vegetarian plan. ";
+        $targetCalories = max(1500, $targetCalories - 300);
+    }
+
+    // Hypertension — low sodium, avoid non-veg fats
+    if (str_contains($health, 'hypertension')) {
+        $recommendedDietary = 'veg';
+        $recommendationNote .= "For Hypertension, we’ve applied a low-sodium vegetarian plan. ";
+        $targetCalories = max(1500, $targetCalories - 200);
+    }
+
+    // Obesity — force weight_loss
+    if (str_contains($health, 'obesity') && $goal === 'weight_gain') {
+        $recommendedGoal = 'weight_loss';
+        $recommendationNote .= "For Obesity, we’ve switched your goal to Weight Loss. ";
+        $targetCalories = max(1400, $targetCalories - 400);
+    }
+
+    // Heart Disease — low fat
+    if (str_contains($health, 'heart')) {
+        $recommendedDietary = 'veg';
+        $recommendationNote .= "For Heart health, we’ve assigned a low-fat vegetarian plan. ";
+        $targetCalories = max(1500, $targetCalories - 250);
+    }
+
+    // Thyroid — balanced plan, avoid too low calories
+    if (str_contains($health, 'thyroid') && $targetCalories < 1500) {
+        $targetCalories = 1700;
+        $recommendationNote .= "Thyroid condition detected — adjusted to moderate calorie balanced plan. ";
+    }
+
+    // PCOS/PCOD — low GI, moderate carbs
+    if (str_contains($health, 'pcos') || str_contains($health, 'pcod')) {
+        $recommendedDietary = 'veg';
+        $recommendationNote .= "For PCOS/PCOD, we’ve used a low-GI vegetarian plan. ";
+        $targetCalories = max(1600, $targetCalories - 200);
+    }
+
+    // ✅ Fetch optimized 7-day plan
+    for ($day = 1; $day <= 7; $day++) {
+        $stmt = $connection->prepare("
+            SELECT * FROM diet_plans 
+            WHERE goal=? AND dietary=? AND activity=? AND day_number=?
+            ORDER BY FIELD(meal_time, 'breakfast','mid_morning','lunch','snack','dinner')
+        ");
+        $stmt->bind_param("sssi", $recommendedGoal, $recommendedDietary, $activity, $day);
+        $stmt->execute();
+        $res = $stmt->get_result();
+
+        while ($meal = $res->fetch_assoc()) {
+            $insert = $connection->prepare("
+                INSERT INTO user_diet_plans
+                (user_id, day_number, meal_time, meal_text, protein, carbs, fat, calories)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $insert->bind_param(
+                "iissiiii",
+                $user_id,
+                $meal['day_number'],
+                $meal['meal_time'],
+                $meal['meal_text'],
+                $meal['protein'],
+                $meal['carbs'],
+                $meal['fat'],
+                $meal['calories']
+            );
+            $insert->execute();
+            $insert->close();
+        }
+        $stmt->close();
+    }
+
+    // 🥗 Smart Summary
+    $planLabel = ucfirst(str_replace('_', ' ', $recommendedGoal)) . " – " . ucfirst($recommendedDietary) . " Plan";
+
+    echo "<script>
+        alert('✅ Personalized {$planLabel} generated successfully!\\n'.
+        'BMI: ".round($bmi,1)."\\nTarget: ~{$targetCalories} kcal/day\\n{$recommendationNote}');
+        window.location='login.php';
+    </script>";
+} else {
+    echo "<script>alert('Error: " . mysqli_error($connection) . "');</script>";
+}
 }
 ?>
 
@@ -203,11 +283,49 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               <option value="other">Other</option>
             </select>
           </div>
-          <div>
-            <label class="block text-gray-700 font-medium mb-2">Health Issues</label>
-            <input type="text" name="health_issues" placeholder="e.g. Diabetes, Hypertension" 
-                   class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
-          </div>
+
+
+
+<div x-data="{ open: false, selected: [] }" class="relative">
+  <label class="block text-gray-700 font-medium mb-2">Health Issues</label>
+
+  <!-- Dropdown button -->
+  <div @click="open = !open"
+       class="border rounded-lg px-5 py-3 text-lg bg-white flex justify-between items-center cursor-pointer focus:ring-2 focus:ring-emerald-500">
+    <span x-text="selected.length ? selected.join(', ') : 'Select health issues...'"></span>
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+    </svg>
+  </div>
+
+  <!-- Dropdown list -->
+  <div x-show="open" @click.away="open = false"
+       class="absolute z-10 mt-2 w-full bg-white border rounded-lg shadow-lg">
+    <ul class="max-h-56 overflow-y-auto">
+      <template x-for="issue in ['None', 'Diabetes', 'Hypertension', 'Thyroid Disorder', 'Obesity', 'Heart Disease', 'PCOS / PCOD']">
+        <li class="px-4 py-2 hover:bg-emerald-50 flex items-center space-x-2">
+          <input type="checkbox" :value="issue" 
+                 @change="if($event.target.checked){ selected.push(issue) } else { selected = selected.filter(i => i !== issue) }"
+                 class="form-checkbox text-emerald-600">
+          <span x-text="issue"></span>
+        </li>
+      </template>
+    </ul>
+  </div>
+
+  <!-- Hidden input to submit selected items -->
+  <template x-for="issue in selected">
+    <input type="hidden" name="health_issues[]" :value="issue">
+  </template>
+
+  <p class="text-sm text-gray-500 mt-2">Select one or more health issues.</p>
+</div>
+
+
+
+
+
+
         </div>
         <div class="flex justify-between mt-8">
           <button type="button" onclick="nextStep(1)" 
@@ -325,7 +443,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
   // initialize step 1 as active
   nextStep(1);
+
+
+  
 </script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 
 
 
