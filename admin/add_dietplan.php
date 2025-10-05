@@ -705,4 +705,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
     });
 
 </script>
-<?php include 'components/footer.php'; ?>
+

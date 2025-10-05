@@ -207,9 +207,9 @@ unset($_SESSION['success'], $_SESSION['error']);
         <p class="text-2xl font-extrabold text-emerald-700"><?= $tdee ?> kcal</p>
       </div>
       
-      <!-- Target Calories -->
+      <!-- Target Calories (UPDATED LABEL) -->
       <div class="p-4 bg-blue-50 rounded-lg">
-        <p class="text-sm font-semibold text-gray-500">Daily Target Range</p>
+        <p class="text-sm font-semibold text-gray-500">Goal-Adjusted Daily Range</p>
         <p class="text-2xl font-extrabold text-blue-700"><?= $min_cal_target ?> - <?= $max_cal_target ?> kcal</p>
       </div>
 
@@ -397,3 +397,4 @@ document.addEventListener("DOMContentLoaded", function() {
   <?php endforeach; ?>
 });
 </script>
+

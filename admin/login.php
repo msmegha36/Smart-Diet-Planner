@@ -34,6 +34,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 ?>
+<script src="../validation/validate.js"> </script>
 
 <?php include 'components/head.php'; ?>
 <?php include 'components/navbar.php'; ?>
@@ -60,13 +61,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <label class="block text-gray-300 font-medium mb-2">Email</label>
         <input type="email" name="email" required
           class="w-full border border-gray-600 bg-gray-700 text-white rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-green-400"
-           oninvalid="InvalidMsg4(this);" oninput="InvalidMsg4(this);">
+            oninvalid="validateEmail(this);" oninput="validateEmail(this);">
       </div>
       <div>
         <label class="block text-gray-300 font-medium mb-2">Password</label>
         <input type="password" name="password" required
           class="w-full border border-gray-600 bg-gray-700 text-white rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-green-400"
-          minlength="3" maxlength="16" oninvalid="InvalidMsg2(this);" oninput="InvalidMsg2(this);">
+            minlength="8" maxlength="16" oninvalid="validatePassword(this);" oninput="validatePassword(this);" >
       </div>
 
       <!-- Submit Button -->

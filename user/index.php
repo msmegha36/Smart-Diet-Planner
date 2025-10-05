@@ -171,6 +171,12 @@ $alert_msg = trim($alert_msg);
   </section>
 </main>
 
+    </div> <!-- CLOSED THE MAIN CONTENT DIV THAT WAS MISSING -->
+</div>
+
+
+
+
 <!-- Modal -->
 <div id="updateModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4" onclick="if (event.target.id === 'updateModal') toggleModal(false)">
   <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-8 transform transition-all duration-300 scale-100">
@@ -229,6 +235,8 @@ $alert_msg = trim($alert_msg);
     </div>
   </div>
 </div>
+
+
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

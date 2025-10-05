@@ -3,6 +3,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
+// NOTE: We assume 'db_conn.php' exists in the config directory relative to this file's execution.
 include(__DIR__ . '/../config/db_conn.php');
 $error = "";
 
@@ -23,9 +24,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($row['status'] === 'approved') {
                 // Set session data
                 $_SESSION['nutritionist_id'] = $row['id'];
-                //$_SESSION['name'] = $row['name'];
-               // $_SESSION['email'] = $row['email'];
-
+                
                 echo "<script>alert('Login Successful ✅'); window.location='index.php';</script>";
                 exit();
             } elseif ($row['status'] === 'pending') {
@@ -44,9 +43,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <?php include 'components/head.php'; ?>
 
+<!-- Include Tailwind via CDN if not already done in components/head.php -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+    /* Custom validity message style */
+    input:invalid:not(:placeholder-shown) {
+        border-color: #ef4444; /* red-500 */
+    }
+    .error-message {
+        color: #ef4444;
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+        transition: opacity 0.3s ease;
+    }
+</style>
+
 <?php include 'components/navbar.php'; ?>
-
-
 
 <main class="flex items-center justify-center min-h-screen bg-gradient-to-r from-green-200 via-blue-200 to-purple-200 px-4">
   <div class="bg-white shadow-2xl rounded-2xl w-full max-w-md p-8">
@@ -57,7 +70,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <p class="text-gray-500 text-base">Access your account</p>
     </div>
 
-    <!-- Error Message -->
+    <!-- Error Message (PHP backend error) -->
     <?php if (!empty($error)): ?>
       <div class="bg-red-100 text-red-700 px-4 py-2 rounded mb-4">
         <?= $error ?>
@@ -68,13 +81,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <form method="POST" class="space-y-6">
       <div>
         <label class="block text-gray-700 font-medium mb-2">Email</label>
-        <input type="email" name="email" required
+        <!-- Added oninput and custom error span -->
+        <input type="email" name="email" id="email" required
+         oninvalid="validateEmail(this);" oninput="validateEmail(this);"
           class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500">
+        <span class="error-message hidden" id="email-error"></span>
       </div>
       <div>
         <label class="block text-gray-700 font-medium mb-2">Password</label>
-        <input type="password" name="password" required
+        <!-- Added oninput and custom error span -->
+        <input type="password" name="password" id="password" required
+           minlength="8" maxlength="16" oninvalid="validatePassword(this);" oninput="validatePassword(this);"
           class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500">
+        <span class="error-message hidden" id="password-error"></span>
       </div>
 
       <!-- Submit Button -->
@@ -98,4 +117,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   </div>
 </main>
 
+<!-- JavaScript for real-time validation -->
+<script>
+    // Helper function to update the visible error span
+    function updateErrorMessage(textbox) {
+        // We use the next sibling span with the error-message class
+        const errorMessageElement = textbox.nextElementSibling;
+        
+        // Use checkValidity() to see if the element is valid based on HTML5 and setCustomValidity() checks
+        if (!textbox.checkValidity()) {
+            errorMessageElement.textContent = textbox.validationMessage;
+            errorMessageElement.classList.remove('hidden');
+        } else {
+            errorMessageElement.classList.add('hidden');
+        }
+    }
+
+  
+    // --- GENERIC REQUIRED FIELD VALIDATION ---
+    function validateRequired(textbox, fieldName) {
+        textbox.setCustomValidity('');
+
+        if (textbox.validity.valueMissing) {
+            textbox.setCustomValidity(`${fieldName} is required.`);
+        }
+        
+        updateErrorMessage(textbox);
+    } 
+</script>
+
 <?php include 'components/footer.php'; ?>
+<script src="../validation/validate.js"> </script>
