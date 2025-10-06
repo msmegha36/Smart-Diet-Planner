@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     $delete->bind_param("i", $nutritionist_id);
     $delete->execute();
 
-    header("Location: approved-nutritionists.php"); // Refresh page
+    header("Location: nutrionist.php"); // Refresh page
     exit();
 }
 

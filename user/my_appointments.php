@@ -28,11 +28,11 @@ $result = $stmt->get_result();
 <?php include 'components/head.php'; ?>
 <?php include 'components/navbar.php'; ?>
 
-<main class="w-full pt-32 px-6">
+<main class="w-full pt-32 px-6 min-h-screen bg-gray-50">
   <h2 class="text-3xl font-bold text-emerald-700 mb-6">📅 My Appointments</h2>
 
   <?php if ($result->num_rows > 0): ?>
-    <div class="overflow-x-auto bg-white rounded-xl shadow-lg">
+    <div class="overflow-x-auto bg-white rounded-xl shadow-xl">
       <table class="w-full table-auto border-collapse">
         <thead class="bg-emerald-600 text-white">
           <tr>
@@ -43,33 +43,53 @@ $result = $stmt->get_result();
             <th class="px-4 py-3 text-left">Notes</th>
             <th class="px-4 py-3 text-left">Status</th>
             <th class="px-4 py-3 text-left">Booked On</th>
+            <th class="px-4 py-3 text-center">Details</th> <!-- New Header -->
           </tr>
         </thead>
         <tbody class="text-gray-700">
           <?php while($row = $result->fetch_assoc()): ?>
-            <tr class="border-b hover:bg-gray-50">
+            <tr class="border-b border-gray-200 hover:bg-emerald-50 transition duration-150">
               <td class="px-4 py-3 font-semibold"><?= htmlspecialchars($row['nutritionist_name']); ?></td>
               <td class="px-4 py-3"><?= htmlspecialchars($row['specialization']); ?></td>
-              <td class="px-4 py-3"><?= htmlspecialchars($row['appointment_date']); ?></td>
+              <td class="px-4 py-3 font-medium"><?= htmlspecialchars($row['appointment_date']); ?></td>
               <td class="px-4 py-3"><?= htmlspecialchars(substr($row['appointment_time'], 0, 5)); ?></td>
-              <td class="px-4 py-3"><?= $row['notes'] ? htmlspecialchars($row['notes']) : '—'; ?></td>
+              <td class="px-4 py-3 text-sm italic"><?= $row['notes'] ? htmlspecialchars($row['notes']) : '—'; ?></td>
               <td class="px-4 py-3">
                 <?php if ($row['status'] == 'pending'): ?>
-                  <span class="px-2 py-1 text-sm rounded bg-yellow-100 text-yellow-700">Pending</span>
+                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">Pending</span>
                 <?php elseif ($row['status'] == 'confirmed'): ?>
-                  <span class="px-2 py-1 text-sm rounded bg-green-100 text-green-700">Confirmed</span>
+                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Confirmed</span>
                 <?php else: ?>
-                  <span class="px-2 py-1 text-sm rounded bg-red-100 text-red-700">Cancelled</span>
+                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Cancelled</span>
                 <?php endif; ?>
               </td>
               <td class="px-4 py-3 text-sm text-gray-500"><?= htmlspecialchars($row['created_at']); ?></td>
+              
+              <!-- New Details Button -->
+              <td class="px-4 py-3 text-center">
+                <a href="../home/contact.php?nutritionist_id=<?= $row['nutritionist_id']; ?>" 
+                   class="inline-block px-3 py-1 text-sm rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition duration-150 shadow-md">
+                   View Profile
+                </a>
+              </td>
             </tr>
           <?php endwhile; ?>
         </tbody>
       </table>
     </div>
   <?php else: ?>
-    <p class="text-gray-500">No appointments booked yet.</p>
+    <div class="p-6 bg-white rounded-xl shadow-lg mt-4">
+      <p class="text-gray-500 font-medium">No appointments booked yet. Time to connect with a nutritionist!</p>
+    </div>
   <?php endif; ?>
 </main>
-
+<?php include 'components/footer.php'; ?>
+<?php
+// Close the statement and connection
+if (isset($stmt)) {
+    $stmt->close();
+}
+if (isset($connection)) {
+    $connection->close();
+}
+?>
