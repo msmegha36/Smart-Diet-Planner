@@ -15,11 +15,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email        = mysqli_real_escape_string($connection, $_POST['email']);
     $pass         = mysqli_real_escape_string($connection, $_POST['password']);
     $gender       = mysqli_real_escape_string($connection, $_POST['gender']);
-    //$health_issues= mysqli_real_escape_string($connection, $_POST['health_issues']);
     $health_issues = isset($_POST['health_issues']) ? implode(', ', $_POST['health_issues']) : 'None';
     $health_issues = mysqli_real_escape_string($connection, $health_issues);
 
-    $dietary      = mysqli_real_escape_string($connection, $_POST['food']); // updated field name
+    $dietary      = mysqli_real_escape_string($connection, $_POST['food']);
     $goal         = mysqli_real_escape_string($connection, $_POST['goal']);
     $activity     = mysqli_real_escape_string($connection, $_POST['activity']);
     $meal_type    = mysqli_real_escape_string($connection, $_POST['meal_type']);
@@ -40,94 +39,142 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $sql = "INSERT INTO reg 
         (name, age, weight, height, email, password, gender, health_issues, dietary, goal, activity, meal_type, type) 
         VALUES 
-        ('$name', '$age', '$weight', '$height', '$email', '$hashed_pass', '$gender', '$health_issues', '$dietary', '$goal', '$activity', '$meal_type', '$type')";
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
+    $stmt_reg = $connection->prepare($sql);
+    $stmt_reg->bind_param("siiissssssssi", $name, $age, $weight, $height, $email, $hashed_pass, $gender, $health_issues, $dietary, $goal, $activity, $meal_type, $type);
 
 
-    if (mysqli_query($connection, $sql)) {
+    if ($stmt_reg->execute()) {
         $user_id = mysqli_insert_id($connection);
+        $stmt_reg->close();
 
-        // 🧩 Basic Calorie & BMI Setup
+        // --- 1. Map Inputs for Calculation ---
+        $inputActivity = $activity;
+        $currentGoal = $goal;
+        $inputDietary = $dietary;
+
+        // --- 2. Correct BMR and TDEE Calculation (Mifflin-St Jeor) ---
+        // Calculate BMR
+        $bmr = ($gender === 'male')
+            ? (10 * $weight) + (6.25 * $height) - (5 * $age) + 5
+            : (10 * $weight) + (6.25 * $height) - (5 * $age) - 161;
+
+        $bmrAdjusted = $bmr;
+        // Apply Activity Multiplier to get TDEE (Total Daily Energy Expenditure)
+        switch ($inputActivity) {
+            case 'sedentary': $bmrAdjusted *= 1.2; break;
+            case 'light': $bmrAdjusted *= 1.375; break;
+            case 'moderate': $bmrAdjusted *= 1.55; break;
+            case 'active': $bmrAdjusted *= 1.725; break;
+            default: $bmrAdjusted *= 1.2;
+        }
+
+        $tdee = round($bmrAdjusted);
         $bmi = $weight / pow($height / 100, 2);
-        $targetCalories = 10 * $weight + 6.25 * $height - 5 * $age + ($gender === 'male' ? 5 : -161);
         
-        // Adjust based on goal
-        if ($goal === 'weight_loss') {
-            $targetCalories -= 400;
-        } elseif ($goal === 'weight_gain') {
-            $targetCalories += 400;
+        // --- 3. Calculate Final Target Calories & Goal Adjustment ---
+        $calorieAdjustment = 0;
+        switch ($currentGoal) {
+            case 'weight_loss': $calorieAdjustment = -500; break;
+            case 'weight_gain': $calorieAdjustment = 500; break;
+            case 'muscle_build': $calorieAdjustment = 300; break;
+            case 'balanced': $calorieAdjustment = 0; break;
         }
-        
-        // Adjust based on activity
-        switch ($activity) {
-            case 'sedentary': $targetCalories *= 1.2; break;
-            case 'light': $targetCalories *= 1.375; break;
-            case 'moderate': $targetCalories *= 1.55; break;
-            case 'active': $targetCalories *= 1.725; break;
-            default: $targetCalories *= 1.2; break;
-        }
-        
-        $targetCalories = round($targetCalories);
-        $recommendedGoal = $goal;
-        $recommendedDietary = $dietary;
-        $recommendationNote = "";
 
-        // ⚕️ Smart Health Adjustment
+        $targetCalories = $tdee + $calorieAdjustment;
+
+        // Ensure target calories is safe minimum (WHO/medical standards)
+        $dailyTarget = max(($gender === 'male' ? 1500 : 1200), round($targetCalories));
+        
+        $recommendedGoal = $currentGoal;
+        $recommendedDietary = $inputDietary;
+        $recommendationNote = "";
+        $finalHealthFocus = "none"; // Default focus
+
+        // --- 4. Smart Health Adjustment & Health Focus Determination ---
         $health = strtolower($health_issues);
 
-        // Diabetes — lower carbs, prefer veg or low-carb
+        // Adjust parameters based on detected health issues
         if (str_contains($health, 'diabetes')) {
+            $finalHealthFocus = 'diabetes';
             $recommendedDietary = 'veg';
-            $recommendationNote .= "For Diabetes, we’ve switched to a low-carb vegetarian plan. ";
-            $targetCalories = max(1500, $targetCalories - 300);
+            $recommendationNote .= "For Diabetes, a low-GI vegetarian plan is prioritized. ";
+            $dailyTarget = max(1500, $dailyTarget - 300);
         }
 
-        // Hypertension — low sodium, avoid non-veg fats
         if (str_contains($health, 'hypertension')) {
-            $recommendedDietary = 'veg';
-            $recommendationNote .= "For Hypertension, we’ve applied a low-sodium vegetarian plan. ";
-            $targetCalories = max(1500, $targetCalories - 200);
+            $finalHealthFocus = 'hypertension';
+            $recommendationNote .= "For Hypertension, a low-sodium plan is prioritized. ";
+            $dailyTarget = max(1500, $dailyTarget - 100);
         }
 
-        // Obesity — force weight_loss
-        if (str_contains($health, 'obesity') && $goal === 'weight_gain') {
-            $recommendedGoal = 'weight_loss';
-            $recommendationNote .= "For Obesity, we’ve switched your goal to Weight Loss. ";
-            $targetCalories = max(1400, $targetCalories - 400);
+        if (str_contains($health, 'obesity')) {
+            $finalHealthFocus = 'obesity';
+            if ($currentGoal !== 'weight_loss') {
+                $recommendedGoal = 'weight_loss';
+                $dailyTarget = max(1400, $dailyTarget - 400);
+                $recommendationNote .= "Due to Obesity, the goal has been adjusted to Weight Loss. ";
+            }
         }
 
-        // Heart Disease — low fat
         if (str_contains($health, 'heart')) {
+            $finalHealthFocus = 'heart_disease';
             $recommendedDietary = 'veg';
-            $recommendationNote .= "For Heart health, we’ve assigned a low-fat vegetarian plan. ";
-            $targetCalories = max(1500, $targetCalories - 250);
+            $recommendationNote .= "For Heart health, a low-fat vegetarian plan is assigned. ";
+            $dailyTarget = max(1500, $dailyTarget - 200);
         }
 
-        // Thyroid — balanced plan, avoid too low calories
-        if (str_contains($health, 'thyroid') && $targetCalories < 1500) {
-            $targetCalories = 1700;
-            $recommendationNote .= "Thyroid condition detected — adjusted to moderate calorie balanced plan. ";
-        }
-
-        // PCOS/PCOD — low GI, moderate carbs
         if (str_contains($health, 'pcos') || str_contains($health, 'pcod')) {
+            $finalHealthFocus = 'pcos';
             $recommendedDietary = 'veg';
-            $recommendationNote .= "For PCOS/PCOD, we’ve used a low-GI vegetarian plan. ";
-            $targetCalories = max(1600, $targetCalories - 200);
+            $recommendationNote .= "For PCOS/PCOD, a low-GI vegetarian plan is used. ";
+            $dailyTarget = max(1600, $dailyTarget - 150);
+        }
+        
+        if (str_contains($health, 'thyroid') && $dailyTarget < 1700) {
+            $dailyTarget = 1700;
+            $recommendationNote .= "Thyroid condition detected — adjusted to ensure moderate calorie intake. ";
         }
 
-        // ✅ Fetch optimized 7-day plan
-        for ($day = 1; $day <= 7; $day++) {
-            $stmt = $connection->prepare("
-                SELECT * FROM diet_plans 
-                WHERE goal=? AND dietary=? AND activity=? AND day_number=?
-                ORDER BY FIELD(meal_time, 'breakfast','mid_morning','lunch','snack','dinner')
-            ");
-            $stmt->bind_param("sssi", $recommendedGoal, $recommendedDietary, $activity, $day);
+        // --- 5. Plan Fetching & Insertion (Using new parameters) ---
+        $planFound = false;
+        $focusesToTry = [$finalHealthFocus, 'none'];
+        $finalPlanFocus = '';
+        $tempPlan = [];
+
+        foreach ($focusesToTry as $focus) {
+            // Attempt to fetch the plan using the current focus
+            $planQuery = "
+                SELECT 
+                    day_number, meal_time, meal_text, quantity, 
+                    protein, carbs, fat, calories
+                FROM diet_plans 
+                WHERE goal=? AND dietary=? AND activity=? AND health_focus=?
+                ORDER BY day_number ASC, FIELD(meal_time, 'breakfast','mid_morning','lunch','snack','dinner','snack3')
+            ";
+            
+            $stmt = $connection->prepare($planQuery);
+            $stmt->bind_param("ssss", $recommendedGoal, $recommendedDietary, $activity, $focus);
             $stmt->execute();
             $res = $stmt->get_result();
+            
+            if ($res->num_rows >= 35) { // Check for a reasonable number of meals (7 days * 5 meals minimum)
+                while ($meal = $res->fetch_assoc()) {
+                    $tempPlan[] = $meal;
+                }
+                $planFound = true;
+                $finalPlanFocus = $focus;
+                $stmt->close();
+                break; // Exit the loop if plan is found
+            }
+            
+            $stmt->close();
+        }
 
-            while ($meal = $res->fetch_assoc()) {
+        if ($planFound) {
+            // Insert the found plan into user_diet_plans
+            foreach ($tempPlan as $meal) {
                 $insert = $connection->prepare("
                     INSERT INTO user_diet_plans
                     (user_id, day_number, meal_time, meal_text, protein, carbs, fat, calories)
@@ -147,22 +194,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $insert->execute();
                 $insert->close();
             }
-            $stmt->close();
+
+            // 🥗 Smart Summary
+            $planLabel = ucfirst(str_replace('_', ' ', $recommendedGoal)) . " – " . ucfirst($recommendedDietary) . " Plan" . ($finalPlanFocus !== 'none' ? " (Focus: " . ucfirst($finalPlanFocus) . ")" : "");
+            if ($finalPlanFocus !== $finalHealthFocus) {
+                 $recommendationNote .= " **Note: A health-specific plan was unavailable, falling back to a general plan.**";
+            }
+
+            echo "<script>
+                alert('✅ Personalized {$planLabel} generated successfully!\\n'.
+                'BMI: ".round($bmi,1)."\\nCalculated TDEE: ".round($tdee)." kcal\\nTarget: ~{$dailyTarget} kcal/day\\n{$recommendationNote}');
+                window.location='login.php';
+            </script>";
+
+        } else {
+            // If no plan was found, even with fallback
+            echo "<script>
+                alert('❌ Error: No complete 7-day plan found for the combination (Goal: {$recommendedGoal}, Diet: {$recommendedDietary}, Activity: {$activity}, Health Focus: {$finalHealthFocus} or none). Please contact support or try different options.');
+                window.location='register.php'; // Redirect back to registration
+            </script>";
         }
-
-        // 🥗 Smart Summary
-        $planLabel = ucfirst(str_replace('_', ' ', $recommendedGoal)) . " – " . ucfirst($recommendedDietary) . " Plan";
-
-        echo "<script>
-            alert('✅ Personalized {$planLabel} generated successfully!\\n'.
-            'BMI: ".round($bmi,1)."\\nTarget: ~{$targetCalories} kcal/day\\n{$recommendationNote}');
-            window.location='login.php';
-        </script>";
     } else {
-        echo "<script>alert('Error: " . mysqli_error($connection) . "');</script>";
+        echo "<script>alert('Error inserting user: " . mysqli_error($connection) . "');</script>";
     }
 }
 ?>
+
 
 <?php include 'components/head.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>

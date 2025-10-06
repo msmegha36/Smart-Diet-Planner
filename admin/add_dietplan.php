@@ -18,6 +18,8 @@ function validate_plan_data($config, $plan) {
     $allowed_dietary = ['veg', 'nonveg'];
     $allowed_activities = ['light', 'moderate', 'active'];
     $allowed_meal_types = ['3_meals', '5_small'];
+    $allowed_health_focus = ['none', 'diabetes', 'hypertension', 'obesity', 'heart_disease', 'pcos', 'thyroid', 'kidney']; // Added kidney
+    
     $meal_times_map = [
         '3_meals' => ['breakfast', 'lunch', 'dinner'],
         '5_small' => ['breakfast', 'mid_morning', 'lunch', 'snack', 'dinner'],
@@ -28,6 +30,7 @@ function validate_plan_data($config, $plan) {
     if (!in_array($config['dietary'] ?? null, $allowed_dietary)) return "Invalid food preference.";
     if (!in_array($config['activity'] ?? null, $allowed_activities)) return "Invalid activity level.";
     if (!in_array($config['meal_type'] ?? null, $allowed_meal_types)) return "Invalid meal type.";
+    if (!in_array($config['health_focus'] ?? null, $allowed_health_focus)) return "Invalid health focus.";
 
     $meal_type_key = $config['meal_type'];
     if (!isset($meal_times_map[$meal_type_key])) return "Unknown meal type structure.";
@@ -50,28 +53,47 @@ function validate_plan_data($config, $plan) {
                 return "Meal description is required for Day $day_number, $meal_time.";
             }
             
-            // Critical Check 2: Numeric fields validation (must be non-negative)
-            $numeric_fields = ['protein', 'carbs', 'fat', 'calories'];
-            foreach ($numeric_fields as $field) {
+            // Critical Check 2: Serving Macro Numeric fields validation (must be non-negative)
+            $serving_numeric_fields = ['protein', 'carbs', 'fat', 'calories'];
+            foreach ($serving_numeric_fields as $field) {
                 $value = $meal[$field] ?? 0;
-                
-                // Ensure value is numeric and non-negative
-                if (!is_numeric($value) || $value < 0) {
-                    return "$field must be a non-negative number for Day $day_number, $meal_time.";
+                if (!is_numeric($value) || intval($value) < 0) {
+                    return "Serving $field must be a non-negative integer for Day $day_number, $meal_time.";
                 }
             }
             
-            // Critical Check 3: Calories must be positive (greater than 0)
-            // We use the already validated numeric value
+            // Calories must be positive (greater than 0)
             if (intval($meal['calories']) <= 0) {
-                return "Calories must be specified (greater than 0) for Day $day_number, $meal_time.";
+                return "Serving Calories must be specified (greater than 0) for Day $day_number, $meal_time.";
+            }
+
+            // Critical Check 3: Scaling fields validation
+            $scaling_numeric_fields = ['base_quantity', 'protein_per_unit', 'carbs_per_unit', 'fat_per_unit', 'calories_per_unit'];
+            foreach ($scaling_numeric_fields as $field) {
+                $value = $meal[$field] ?? 0;
+                // Note: base_quantity is decimal, others are int/decimal
+                if (!is_numeric($value) || floatval($value) < 0) {
+                    return "Scaling field $field must be a non-negative number for Day $day_number, $meal_time.";
+                }
+            }
+            
+            // Base Quantity and Calories Per Unit must be positive
+            if (floatval($meal['base_quantity']) <= 0) {
+                return "Base Quantity must be greater than 0 for Day $day_number, $meal_time.";
+            }
+            if (intval($meal['calories_per_unit']) <= 0) {
+                return "Calories Per Unit must be greater than 0 (calculated from serving) for Day $day_number, $meal_time.";
+            }
+
+            // Unit check
+            if (empty(trim($meal['unit'] ?? ''))) {
+                 return "Unit field is required for Day $day_number, $meal_time.";
             }
 
             // Boolean flags check (must be boolean 0 or 1)
             $flag_fields = ['low_carb', 'low_glycemic', 'high_fiber'];
             foreach ($flag_fields as $flag) {
                  $flag_value = $meal[$flag] ?? 0;
-                 // Check if it's a valid 0 or 1 representation
                  if (!(is_bool($flag_value) || in_array($flag_value, [0, 1], true))) {
                       return "Flag '$flag' has an invalid value for Day $day_number, $meal_time.";
                  }
@@ -109,28 +131,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && str_contains($_SERVER['CONTENT_TYPE
     $success_count = 0;
 
     try {
-        // Prepare the INSERT statement once outside the loop
+        // Total 22 columns
         $insert = $connection->prepare("INSERT INTO diet_plans 
-            (goal, dietary, activity, meal_type, day_number, meal_time, meal_text, quantity, protein, carbs, fat, calories, low_carb, low_glycemic, high_fiber) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            (goal, dietary, activity, meal_type, day_number, meal_time, meal_text, quantity, protein, carbs, fat, calories, low_carb, low_glycemic, high_fiber, health_focus, base_quantity, unit, protein_per_unit, carbs_per_unit, fat_per_unit, calories_per_unit) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-        // Bind parameters (type definition string: ssssissisiiiiii)
-        $insert->bind_param("ssssissisiiiiii", 
+        // Type definition string: ssssissisiiiiisfsfffi
+        // s: string, i: int, f: float
+        // Note: Decimals in MySQL map to floats in PHP
+        $insert->bind_param("ssssissisiiiiisfsfffi", 
             $config['goal'], 
             $config['dietary'], 
             $config['activity'], 
             $config['meal_type'], 
-            $day_number, 
-            $meal_time, 
-            $meal_text, 
-            $quantity,
-            $protein, 
-            $carbs, 
-            $fat, 
-            $calories,
-            $low_carb,
-            $low_glycemic,
-            $high_fiber
+            $day_number, // i
+            $meal_time, // s
+            $meal_text, // s
+            $quantity, // s
+            $protein, // i
+            $carbs, // i
+            $fat, // i
+            $calories, // i
+            $low_carb, // i
+            $low_glycemic, // i
+            $high_fiber, // i
+            $health_focus, // s (NEW)
+            $base_quantity, // f (NEW)
+            $unit, // s (NEW)
+            $protein_per_unit, // f (NEW)
+            $carbs_per_unit, // f (NEW)
+            $fat_per_unit, // f (NEW)
+            $calories_per_unit // i (NEW)
         );
 
         // Meal times map for execution logic
@@ -139,6 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && str_contains($_SERVER['CONTENT_TYPE
             '5_small' => ['breakfast', 'mid_morning', 'lunch', 'snack', 'dinner'],
         ];
         $meal_times_for_plan = $meal_times_map[$config['meal_type']];
+        $health_focus = $config['health_focus'];
 
 
         foreach ($plan as $day_index => $day_meals) {
@@ -150,14 +182,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && str_contains($_SERVER['CONTENT_TYPE
                 // Assign values to bound variables
                 $meal_text = $meal['meal_text'];
                 $quantity = $meal['quantity'];
-                // Ensure explicit integer casting for database insertion
+                
+                // Serving Macros
                 $protein = intval($meal['protein']);
                 $carbs = intval($meal['carbs']);
                 $fat = intval($meal['fat']);
                 $calories = intval($meal['calories']);
+                
+                // Flags
                 $low_carb = $meal['low_carb'] ? 1 : 0;
                 $low_glycemic = $meal['low_glycemic'] ? 1 : 0;
                 $high_fiber = $meal['high_fiber'] ? 1 : 0;
+                
+                // Scaling Fields
+                $base_quantity = floatval($meal['base_quantity']);
+                $unit = $meal['unit'];
+                $protein_per_unit = floatval($meal['protein_per_unit']);
+                $carbs_per_unit = floatval($meal['carbs_per_unit']);
+                $fat_per_unit = floatval($meal['fat_per_unit']);
+                $calories_per_unit = intval($meal['calories_per_unit']);
                 
                 // Execute the statement
                 if (!$insert->execute()) {
@@ -219,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         <!-- STEP 1: GLOBAL CONFIGURATION -->
         <div id="step-1" class="step-content">
             <h3 class="text-xl font-semibold text-gray-700 mb-6 border-b pb-2">Step 1: Plan Preferences (Global)</h3>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
                 
                 <!-- Food Preference -->
                 <div>
@@ -254,13 +297,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
                     </select>
                 </div>
 
-                <!-- Preferred Meal Type -->
+                <!-- Meal Type -->
                 <div>
                     <label class="block text-gray-700 font-medium mb-2">Preferred Meal Type</label>
                     <select name="meal_type" id="meal_type" required
                             class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500 transition duration-150">
                         <option value="3_meals">3 Meals/Day (B, L, D)</option>
                         <option value="5_small">5 Small Meals/Day (B, MM, L, Snk, D)</option>
+                    </select>
+                </div>
+                
+                <!-- Health Focus (NEW) -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Health Focus</label>
+                    <select name="health_focus" id="health_focus" required
+                            class="w-full border rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-emerald-500 transition duration-150">
+                        <option value="none">None (General)</option>
+                        <option value="diabetes">Diabetes (Low GI)</option>
+                        <option value="hypertension">Hypertension (Low Sodium)</option>
+                        <option value="obesity">Obesity (Strict Calorie)</option>
+                        <option value="heart_disease">Heart Disease (Low Fat)</option>
+                        <option value="pcos">PCOS (Low GI/Moderate Carb)</option>
+                        <option value="thyroid">Thyroid (Balanced)</option>
+                        <option value="kidney">Kidney (Low Protein)</option>
                     </select>
                 </div>
             </div>
@@ -324,10 +383,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         low_carb: false,
         low_glycemic: false,
         high_fiber: false,
+        
+        // NEW SCALING FIELDS
+        base_quantity: 100.00, // Default to 100g for easy calculation
+        unit: 'g',        
+        
+        // CALCULATED/SYSTEM FIELDS (will be updated by JS)
+        protein_per_unit: 0.00,
+        carbs_per_unit: 0.00,
+        fat_per_unit: 0.00,
+        calories_per_unit: 0,
     });
 
     const createInitialPlanState = () => {
-        // Initialize 7 days of data with the 5-meal structure (max structure)
         return Array(7).fill(null).map(() => {
             const dayMeals = {};
             [...MEAL_TIMES['5_small']].forEach(time => {
@@ -343,6 +411,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
     let planData = createInitialPlanState(); // Holds data for all 7 days
 
     const $ = (id) => document.getElementById(id);
+    
+    // --- UTILITY FUNCTIONS ---
+    function calculatePerUnitMacros(day, time) {
+        const meal = planData[day][time];
+        const baseGrams = parseFloat(meal.base_quantity);
+        
+        // Only calculate if base grams is valid and positive
+        if (baseGrams > 0) {
+            const factor = 100 / baseGrams;
+
+            // Calculate per-unit values (per 100g/unit)
+            meal.protein_per_unit = (meal.protein * factor).toFixed(2);
+            meal.carbs_per_unit = (meal.carbs * factor).toFixed(2);
+            meal.fat_per_unit = (meal.fat * factor).toFixed(2);
+            meal.calories_per_unit = Math.round(meal.calories * factor);
+        } else {
+            // Reset to 0 if base quantity is invalid
+            meal.protein_per_unit = 0.00;
+            meal.carbs_per_unit = 0.00;
+            meal.fat_per_unit = 0.00;
+            meal.calories_per_unit = 0;
+        }
+
+        // Update read-only fields in the UI
+        $(`protein_per_unit_${day}_${time}`).value = meal.protein_per_unit;
+        $(`carbs_per_unit_${day}_${time}`).value = meal.carbs_per_unit;
+        $(`fat_per_unit_${day}_${time}`).value = meal.fat_per_unit;
+        $(`calories_per_unit_${day}_${time}`).value = meal.calories_per_unit;
+    }
 
     // Function to move to the next step (from config to meal entry)
     function nextStep() {
@@ -352,6 +449,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
             goal: $('goal').value,
             activity: $('activity').value,
             meal_type: $('meal_type').value,
+            health_focus: $('health_focus').value, // NEW CONFIG FIELD
         };
         
         // 2. Transition to Step 2
@@ -376,29 +474,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
     function validateField(input) {
         let isValid = true;
         const field = input.dataset.field;
-        const value = input.value.trim(); // Get the current DOM value
-        const numValue = parseInt(value);
+        const value = input.value.trim();
+        let numValue;
         
-        // --- 1. Check for Required Fields being Empty ---
-        const isRequiredField = ['meal_text', 'calories', 'protein', 'carbs', 'fat'].includes(field);
-
-        if (isRequiredField && value === '') {
+        // Required Fields (must not be empty)
+        const isRequired = ['meal_text', 'calories', 'protein', 'carbs', 'fat', 'base_quantity', 'unit'].includes(field);
+        
+        if (isRequired && value === '') {
             isValid = false;
         } 
         
-        // --- 2. Check for Numeric Validity (only if value is not empty) ---
         if (value !== '') {
-            if (field === 'meal_text') {
-                // Already covered above
+            if (field === 'meal_text' || field === 'quantity' || field === 'unit') {
+                // Text fields, already checked for emptiness
             }
-            // Calories must be a positive integer > 0
+            // Base Quantity (must be positive decimal > 0)
+            else if (field === 'base_quantity') {
+                 numValue = parseFloat(value);
+                 if (isNaN(numValue) || numValue <= 0) {
+                     isValid = false;
+                 }
+            }
+            // Calories (must be positive integer > 0)
             else if (field === 'calories') {
+                numValue = parseInt(value);
                 if (isNaN(numValue) || numValue <= 0) {
                     isValid = false;
                 }
             } 
-            // Other Macros must be non-negative integers >= 0
+            // Other Macros (must be non-negative integers >= 0)
             else if (['protein', 'carbs', 'fat'].includes(field)) {
+                numValue = parseInt(value);
                 if (isNaN(numValue) || numValue < 0) {
                     isValid = false;
                 }
@@ -408,7 +514,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         if (isValid) {
             input.classList.remove('error-border');
         } else {
-            // Apply error styling if validation failed (empty or invalid number)
             input.classList.add('error-border');
         }
     }
@@ -416,7 +521,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
     // --- BULK DAY VALIDATION (for Next Day/Submit clicks) ---
     function validateCurrentDay(dayIndex) {
         const mealTimes = MEAL_TIMES[globalConfig.meal_type];
-        const currentDayMeals = planData[dayIndex];
         let isValid = true;
         
         // Remove previous error message
@@ -425,11 +529,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         document.querySelectorAll('.error-border').forEach(el => el.classList.remove('error-border'));
         
         mealTimes.forEach(time => {
-            const meal = currentDayMeals[time];
-            const mealTextEl = $(`meal_text_${dayIndex}_${time}`);
-            
-            // Check all inputs for the current meal using the saved state/DOM for highlighting
-            const fieldsToValidate = ['meal_text', 'calories', 'protein', 'carbs', 'fat'];
+            // Check inputs using DOM elements for visual feedback
+            const fieldsToValidate = ['meal_text', 'quantity', 'base_quantity', 'unit', 'calories', 'protein', 'carbs', 'fat'];
             
             fieldsToValidate.forEach(field => {
                 const inputEl = $(`${field}_${dayIndex}_${time}`);
@@ -442,15 +543,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
                     }
                 }
             });
+            
+            // Also check the calculated calories_per_unit, which should be > 0 if serving calories > 0
+            if (planData[dayIndex][time].calories > 0 && planData[dayIndex][time].calories_per_unit <= 0) {
+                 isValid = false;
+                 // Note: We don't error-border the read-only field, the error message explains it
+            }
         });
 
         if (!isValid) {
-            // Show consolidated error message below the day header
             const errorContainer = $('step-2');
             const message = document.createElement('div');
             message.id = 'validation-error-msg';
             message.className = 'error-message p-3 mb-4 bg-red-100 text-red-700 rounded-lg font-medium shadow-md';
-            message.innerHTML = '🚨 **Validation Error on Day ' + (dayIndex + 1) + ':** Please ensure all meals have a **Description**, **Calories ($\gt$ 0)**, and all macro values are **non-negative integers ($\ge$ 0)**. Highlighted fields need attention.';
+            message.innerHTML = '🚨 **Validation Error on Day ' + (dayIndex + 1) + ':** Please ensure all highlighted fields are valid. **Base Quantity** and **Serving Calories** must be $\gt$ 0. Macros must be $\ge$ 0.';
             errorContainer.insertBefore(message, $('meal-inputs-container'));
         }
 
@@ -473,35 +579,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
 
         mealTimes.forEach(time => {
             const meal = currentDayMeals[time] || initialMealData(); 
+            const dayTimeKey = `${currentDay}_${time}`;
 
             const mealHtml = `
                 <div class="p-6 border border-gray-200 rounded-xl shadow-sm bg-white hover:shadow-md transition duration-200">
                     <h4 class="text-xl font-bold text-gray-700 mb-4 capitalize">${time.replace('_', ' ')}</h4>
 
-                    <div class="space-y-3">
+                    <div class="space-y-3 mb-4">
                         <label class="block">
                             <span class="text-sm font-medium text-gray-500">Meal Description <span class="text-red-500">*</span></span>
-                            <textarea id="meal_text_${currentDay}_${time}" data-day="${currentDay}" data-time="${time}" data-field="meal_text" rows="2" class="w-full border rounded-lg px-4 py-2 text-base focus:ring-1 focus:ring-emerald-500">${meal.meal_text}</textarea>
+                            <textarea id="meal_text_${dayTimeKey}" data-day="${currentDay}" data-time="${time}" data-field="meal_text" rows="2" class="w-full border rounded-lg px-4 py-2 text-base focus:ring-1 focus:ring-emerald-500">${meal.meal_text}</textarea>
                         </label>
                         <label class="block">
-                            <span class="text-sm font-medium text-gray-500">Quantity/Serving Size (Optional)</span>
-                            <input type="text" id="quantity_${currentDay}_${time}" data-day="${currentDay}" data-time="${time}" data-field="quantity" value="${meal.quantity}" placeholder="e.g., 100g chicken breast" class="w-full border rounded-lg px-4 py-2 text-base focus:ring-1 focus:ring-emerald-500">
+                            <span class="text-sm font-medium text-gray-500">Serving Size/Quantity (Text, Optional)</span>
+                            <input type="text" id="quantity_${dayTimeKey}" data-day="${currentDay}" data-time="${time}" data-field="quantity" value="${meal.quantity}" placeholder="e.g., 1 plate or 2 chapatis" class="w-full border rounded-lg px-4 py-2 text-base focus:ring-1 focus:ring-emerald-500">
                         </label>
                     </div>
 
-                    <div class="grid grid-cols-4 gap-3 mt-4 text-center">
-                        ${['protein', 'carbs', 'fat', 'calories'].map(field => `
-                            <div>
-                                <label class="block text-gray-700 font-medium mb-1 capitalize">${field} (g/${field === 'calories' ? 'kcal' : 'g'}) ${field === 'calories' ? '<span class="text-red-500">*</span>' : ''}</label>
-                                <input type="number" id="${field}_${currentDay}_${time}" data-day="${currentDay}" data-time="${time}" data-field="${field}" value="${meal[field] > 0 || field === 'calories' ? meal[field] : ''}" min="${field === 'calories' ? '1' : '0'}" step="1" class="w-full border rounded-lg px-2 py-1 text-sm font-mono focus:ring-1 focus:ring-emerald-500">
-                            </div>
-                        `).join('')}
+                    <!-- SCALING BASE INPUTS -->
+                    <div class="grid grid-cols-2 gap-4 border-t pt-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">Base Quantity (Grams) <span class="text-red-500">*</span></label>
+                            <input type="number" id="base_quantity_${dayTimeKey}" data-day="${currentDay}" data-time="${time}" data-field="base_quantity" value="${meal.base_quantity}" min="0.01" step="0.01" placeholder="e.g., 150.50" class="w-full border rounded-lg px-2 py-1 text-sm font-mono focus:ring-1 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">Base Unit <span class="text-red-500">*</span></label>
+                            <input type="text" id="unit_${dayTimeKey}" data-day="${currentDay}" data-time="${time}" data-field="unit" value="${meal.unit}" placeholder="g, ml, unit" class="w-full border rounded-lg px-2 py-1 text-sm font-mono focus:ring-1 focus:ring-emerald-500">
+                        </div>
                     </div>
 
+                    <div class="mt-4">
+                        <h5 class="text-md font-semibold text-gray-600 mb-2">Serving Macro Details</h5>
+                        <div class="grid grid-cols-4 gap-3 text-center">
+                            ${['protein', 'carbs', 'fat', 'calories'].map(field => `
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-1 capitalize text-sm">${field} (serving) ${field === 'calories' ? '<span class="text-red-500">*</span>' : ''}</label>
+                                    <input type="number" id="${field}_${dayTimeKey}" data-day="${currentDay}" data-time="${time}" data-field="${field}" value="${meal[field] > 0 ? meal[field] : ''}" min="${field === 'calories' ? '1' : '0'}" step="1" class="w-full border rounded-lg px-2 py-1 text-sm font-mono focus:ring-1 focus:ring-emerald-500">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- CALCULATED PER-UNIT OUTPUTS (READ-ONLY) -->
+                    <div class="mt-4 p-3 bg-gray-50 border rounded-lg">
+                        <h5 class="text-xs font-bold text-gray-600 mb-2">Calculated Macros (Per 100g/unit)</h5>
+                        <div class="grid grid-cols-4 gap-3 text-center">
+                            ${['protein', 'carbs', 'fat', 'calories'].map(field => `
+                                <div>
+                                    <label class="block text-gray-500 font-medium mb-1 capitalize text-xs">${field} / 100g</label>
+                                    <input type="text" id="${field}_per_unit_${dayTimeKey}" value="${field === 'calories' ? meal.calories_per_unit : meal[`${field}_per_unit`].toFixed(2)}" readonly class="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs font-mono bg-white text-gray-700 text-center">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- FLAGS -->
                     <div class="flex justify-around mt-4 pt-3 border-t">
                         ${['low_carb', 'low_glycemic', 'high_fiber'].map(field => `
                             <label class="inline-flex items-center text-xs text-gray-600 font-medium cursor-pointer">
-                                <input type="checkbox" id="${field}_${currentDay}_${time}" data-day="${currentDay}" data-time="${time}" data-field="${field}" ${meal[field] ? 'checked' : ''} class="rounded text-emerald-600 shadow-sm focus:ring-emerald-500">
+                                <input type="checkbox" id="${field}_${dayTimeKey}" data-day="${currentDay}" data-time="${time}" data-field="${field}" ${meal[field] ? 'checked' : ''} class="rounded text-emerald-600 shadow-sm focus:ring-emerald-500">
                                 <span class="ml-2 capitalize">${field.replace('_', ' ')}</span>
                             </label>
                         `).join('')}
@@ -509,13 +645,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
                 </div>
             `;
             container.insertAdjacentHTML('beforeend', mealHtml);
+            
+            // After rendering, ensure the initial calculated fields are up-to-date
+            calculatePerUnitMacros(currentDay, time);
         });
 
         // Attach event listeners to all newly rendered inputs
         container.querySelectorAll('[data-field]').forEach(input => {
-            // Save data on input/change
-            input.addEventListener('change', handleInputChange);
             input.addEventListener('input', handleInputChange);
+            input.addEventListener('change', handleInputChange);
             
             // Validate the input immediately after rendering
             validateField(input);
@@ -524,7 +662,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         updateDayNavigation();
     }
 
-    // Saves the input value to the planData state and triggers real-time validation
+    // Saves the input value to the planData state and triggers real-time validation and calculation
     function handleInputChange(e) {
         const input = e.target;
         const day = parseInt(input.dataset.day);
@@ -535,37 +673,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         if (input.type === 'checkbox') {
             value = input.checked;
         } else if (input.type === 'number') {
-            // Read the raw string value from the input
             const rawValue = input.value.trim();
-            const numValue = parseInt(rawValue);
+            const numValue = field === 'base_quantity' ? parseFloat(rawValue) : parseInt(rawValue);
 
-            // Determine the value to save to planData (safe integer)
             if (rawValue === '' || isNaN(numValue)) {
-                // Save 0 to state for safety (this passes server-side >= 0 check)
                 value = 0; 
             } else {
                 value = Math.max(0, numValue);
+                // For base_quantity, allow decimals
+                if (field === 'base_quantity') {
+                    value = Math.max(0.01, parseFloat(rawValue).toFixed(2));
+                }
                 
-                // If the user typed a negative number, clip the input value visually to 0
                 if (numValue < 0) {
-                   input.value = value; // Visually correct the input
+                   input.value = value;
                 }
             }
-            
         } else {
-            // Text fields (meal_text, quantity)
             value = input.value;
         }
 
         // 1. Save data to the correct day/meal/field
         planData[day][time][field] = value;
         
-        // 2. Run real-time validation on the specific input
+        // 2. Run real-time validation
         validateField(input); 
 
-        // 3. If the overall validation error message is visible, re-validate the current day to update the error message's visibility.
+        // 3. Auto-Calculate Per-Unit Macros if a relevant field changed
+        const relevantFields = ['base_quantity', 'protein', 'carbs', 'fat', 'calories'];
+        if (relevantFields.includes(field)) {
+            calculatePerUnitMacros(day, time);
+        }
+
+        // 4. Update validation error message if needed
         if ($('validation-error-msg')) {
-             // We use a slight delay here to let all real-time field validation complete first
              setTimeout(() => validateCurrentDay(currentDay), 50);
         }
     }
@@ -593,7 +734,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         const nextBtn = $('next-day-btn');
         const submitBtn = $('submit-btn');
 
-        // If on day 1, back button goes to config
         if (currentDay === 0) {
             prevBtn.textContent = '← Back to Config';
             prevBtn.onclick = prevStep;
@@ -602,15 +742,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
             prevBtn.onclick = () => changeDay(-1);
         }
         
-        prevBtn.disabled = false; // Always enabled (either to config or previous day)
+        prevBtn.disabled = false;
         nextBtn.disabled = currentDay === 6;
 
         if (currentDay === 6) {
-            // Show submit button on Day 7
             nextBtn.classList.add('hidden');
             submitBtn.classList.remove('hidden');
         } else {
-            // Show next day button on Day 1-6
             nextBtn.classList.remove('hidden');
             submitBtn.classList.add('hidden');
         }
@@ -629,12 +767,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         
         statusDiv.innerHTML = `<p class="font-bold">${type.toUpperCase()}:</p><p>${message}</p>`;
         
-        // Auto-hide after 10 seconds
         setTimeout(() => {
             statusDiv.classList.add('hidden');
         }, 10000);
     }
     
+    // Custom confirm dialog replacement
+    function confirm(message) {
+        return window.confirm(message);
+    }
+
     // Final submission function
     async function submitPlan() {
         // 1. Client-side validation of the FINAL day (Day 7)
@@ -643,7 +785,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
             return;
         }
 
-        // Use custom modal for confirmation
         if (!confirm("Are you sure you want to submit the entire 7-day plan? The server will perform a final validation check.")) {
             return;
         }
@@ -652,12 +793,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
 
-        // Filter the planData to only include meals relevant to the selected meal_type
+        // Filter and prepare the data for submission
         const mealTimes = MEAL_TIMES[globalConfig.meal_type];
         const filteredPlan = planData.map(dayMeals => {
             const filteredDay = {};
             mealTimes.forEach(time => {
-                filteredDay[time] = dayMeals[time];
+                const meal = dayMeals[time];
+                // Ensure decimal values are stored as floats for PHP binding
+                meal.base_quantity = parseFloat(meal.base_quantity);
+                meal.protein_per_unit = parseFloat(meal.protein_per_unit);
+                meal.carbs_per_unit = parseFloat(meal.carbs_per_unit);
+                meal.fat_per_unit = parseFloat(meal.fat_per_unit);
+                
+                filteredDay[time] = meal;
             });
             return filteredDay;
         });
@@ -683,9 +831,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
                 // Reset form to Step 1 and clear data
                 planData = createInitialPlanState();
                 currentDay = 0;
-                prevStep();
+                // Wait briefly for state reset before going back
+                setTimeout(() => prevStep(), 500); 
             } else {
-                // If validation failed on the server, show the error message
                 showStatus('error', result.message || 'An unknown error occurred on the server.');
             }
 
@@ -700,9 +848,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !str_contains($_SERVER['CONTENT_TYP
 
     // Initial load setup
     document.addEventListener('DOMContentLoaded', () => {
-        // Set up initial day data structure
         // No need to call renderCurrentDay here as it is called in nextStep()
     });
 
 </script>
-

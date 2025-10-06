@@ -179,7 +179,7 @@ unset($_SESSION['success'], $_SESSION['error']);
             <p class="text-lg">All your current plan days have total calories **higher** than your target maximum (<?= $max_cal_target ?> kcal). </p>
             <p class="mt-1 font-semibold">We recommend generating a new plan to better meet your **<?= $goal_text ?>** goal.</p>
         </div>
-        <button onclick="window.location='generate_plan.php'" class="mt-4 md:mt-0 px-6 py-3 bg-red-600 text-white font-bold rounded-full shadow-md hover:bg-red-700 transition duration-300">
+        <button onclick="window.location='plans.php'" class="mt-4 md:mt-0 px-6 py-3 bg-red-600 text-white font-bold rounded-full shadow-md hover:bg-red-700 transition duration-300">
             Generate New Plan
         </button>
     </div>
