@@ -32,7 +32,7 @@ $baseTotalCalories = 0; // New: To store the total calories of the fetched BASE 
 
 // Function to display styled alerts
 function displayAlert($message, $type = 'error') {
-    // Using Emerald colors for success state
+    // Using Emerald colors for success state and Red for error
     $class = ($type === 'success') 
         ? 'bg-emerald-100 border-emerald-400 text-emerald-700' 
         : 'bg-red-100 border-red-400 text-red-700';
@@ -68,7 +68,8 @@ $user = $userRes->get_result()->fetch_assoc();
 $userRes->close();
 
 if (!$user) {
-    $error = "User record not found! Please check your account data.";
+    // Standardized error message
+    $error = "User record not found! Please <strong>check your account data</strong>.";
 } else {
     // Ensure all necessary user data is available
     $weight = floatval($user['weight'] ?? 0);
@@ -104,10 +105,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
 
     // --- Initial Validation ---
     if (empty($inputGoal) || empty($inputDietary) || empty($inputActivity) || empty($inputMealType)) {
-        $error = "Please select all options to generate a plan.";
+        // Standardized error message
+        $error = "Please <strong>select all options</strong> to generate a plan.";
         $canProceed = false;
     } elseif ($weight <= 0 || $height <= 0 || $age <= 0) {
-        $error = "Please update your weight, height, and age in your profile to generate a personalized plan.";
+        // Standardized error message
+        $error = "Please update your <strong>weight, height, and age</strong> in your profile to generate a personalized plan.";
         $canProceed = false;
     } 
     
@@ -123,7 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
         // --- Health/Goal Conflict Check 1: BMI Safety ---
         if ($bmi >= 40) {
              if ($inputGoal === 'weight_gain' || $inputGoal === 'muscle_build') {
-                $error = "Health Safety Alert: Your current BMI ({$bmi}) indicates a high-risk category (Obesity Class III). The selected goal ({$currentGoalDisplay}) is medically discouraged. Please select Weight Loss or Balanced Diet.";
+                // Standardized error message (using <strong>)
+                $error = "Health Safety Alert: Your current BMI ({$bmi}) indicates a high-risk category. The selected goal ({$currentGoalDisplay}) is discouraged. Please select <strong>Weight Loss or Balanced Diet</strong>.";
                 $canProceed = false;
             }
         }
@@ -135,13 +139,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
             if (preg_match('/\b(diabetes|diabetic|pcod|pcos)\b/i', $health_issues)) {
                 
                 if ($currentGoal === 'weight_gain' || $currentGoal === 'muscle_build') {
-                    $error = "Health Safety Alert: Your selected goal ({$currentGoalDisplay}) is highly discouraged for users with Diabetes, PCOS, or PCOD. Please select Weight Loss or Balanced Diet.";
+                    // Standardized error message (using <strong>)
+                    $error = "Health Safety Alert: Your goal ({$currentGoalDisplay}) is not recommended due to your health profile. Please select <strong>Weight Loss or Balanced Diet</strong>.";
                     $canProceed = false;
                 }
                 
                 if ($canProceed) {
                     $finalHealthFocus = "low_carb"; // Set focus for SQL query
-                    $healthWarning = "A specialized **Low-Carb** filter has been applied to your plan for optimal blood sugar control.";
+                    // Standardized health warning (using <strong>)
+                    $healthWarning = "A specialized <strong>Low-Carb</strong> plan has been prepared to support optimal blood sugar control.";
                 }
             } 
             
@@ -149,13 +155,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
             elseif (preg_match('/\b(heart|cardiac|hypertension|cholesterol)\b/i', $health_issues)) {
                 
                 if ($currentGoal === 'weight_gain' || $currentGoal === 'muscle_build') {
-                    $error = "Health Safety Alert: Your selected goal ({$currentGoalDisplay}) is unsafe for users with Heart Disease/Hypertension. Please select Weight Loss or Balanced Diet.";
+                    // Standardized error message (using <strong>)
+                    $error = "Health Safety Alert: Your goal ({$currentGoalDisplay}) is not recommended due to your health profile. Please select <strong>Weight Loss or Balanced Diet</strong>.";
                     $canProceed = false;
                 }
                 
                 if ($canProceed) {
                     $finalHealthFocus = "high_fiber"; // Set focus for SQL query
-                    $healthWarning = "A **Heart-Healthy High-Fiber** filter has been applied. Please ensure your food choices are low in sodium and saturated fats.";
+                    // Standardized health warning (using <strong>)
+                    $healthWarning = "A <strong>Heart-Healthy High-Fiber</strong> plan has been prepared. Please ensure your food choices are low in sodium and saturated fats.";
                 }
             }
             
@@ -163,13 +171,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
             elseif (preg_match('/\b(obesity|overweight|high\s?bmi)\b/i', $health_issues) || $bmi >= 30) {
                 
                 if ($currentGoal === 'weight_gain') {
-                    $error = "Health Safety Alert: Your selected goal (Weight Gain) is unsafe for users with Obesity. Please select Weight Loss or Balanced Diet.";
+                    // Standardized error message (using <strong>)
+                    $error = "Health Safety Alert: Your selected goal (Weight Gain) is not recommended. Please select <strong>Weight Loss or Balanced Diet</strong>.";
                     $canProceed = false;
                 }
                 
                 if ($canProceed) {
                     $finalHealthFocus = "high_fiber"; // Set focus for SQL query
-                    $healthWarning = "A **High-Fiber** filter has been applied to support effective weight management.";
+                    // Standardized health warning (using <strong>)
+                    $healthWarning = "A <strong>High-Fiber</strong> plan has been prepared to support effective weight management.";
                 }
             }
         }
@@ -249,7 +259,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
             $finalHealthFocus = "none"; // Set focus for SQL query
             $planAttempt = $fetchPlanRows($currentGoal, $inputDietary, $currentActivity, $currentMealType, $finalHealthFocus); 
             if ($planAttempt !== false) {
-                 $healthWarning .= " **NOTE: The highly specialized health filter was unavailable, falling back to a general plan.**";
+                 // Standardized fallback warning (using <br> and <strong>)
+                 $healthWarning .= " <br><strong>NOTE: A highly specialized plan was unavailable. We have provided a general plan based on your goal.</strong>";
             }
         }
         
@@ -327,7 +338,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
             
             // Check if 7 full days were retrieved
             if (count($loadedPlan) < 7) {
-                 $error = "❌ Error: Found only " . count($loadedPlan) . " days of data. A complete 7-day plan is required. Please ensure your generator script (`test.php`) ran successfully for this combination.";
+                 // Standardized error message
+                 $error = "The plan generation failed: We could only find " . count($loadedPlan) . " out of 7 required days. Please <strong>try a different combination</strong> or contact support.";
                  $loadedPlan = []; // Clear partial data
             } else {
                 
@@ -338,14 +350,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
                 $finalMealType = $currentMealType;
 
                 $goalName = ucwords(str_replace('_', ' ', $finalGoal));
-                // Note that the plan is *not* yet scaled in the display, the JS will do that.
-                $success = "✅ Success: Personalized Plan loaded. It is now scaled dynamically to match your **{$dailyTarget} kcal** target." . ($healthWarning ? " <br>{$healthWarning}" : "");
+                // Standardized success message (no dynamic scaling mention)
+                $success = "Your personalized <strong>{$dailyTarget} kcal</strong> plan has been successfully loaded." . ($healthWarning ? " <br>{$healthWarning}" : "");
                 $showSaveButton = true;
             }
             
         } else {
-             // Plan failed to fetch (no meals in DB)
-             $error = "❌ Error: No complete 7-day plan found at this moment for your selected options (Goal: {$currentGoalDisplay}, Diet: {$currentDietary}, Focus: {$finalHealthFocus}). Please ensure you have generated this combination using your `test.php` script.";
+             // Standardized error message (removed DB details)
+             $error = "We could not find a complete plan for the selected options (Goal: {$currentGoalDisplay}, Diet: {$currentDietary}). Please <strong>try a different combination</strong> or contact support.";
         }
     } // End of if ($canProceed)
 }
@@ -360,13 +372,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
     $savedMealType  = $_POST['meal_type'] ?? '';
 
     if (empty($_POST['plan'])) {
-        $error = "❌ Error: No plan data received from the client. Please regenerate and try again.";
+        // Standardized error message
+        $error = "Plan data was lost during submission. Please <strong>regenerate and try again</strong>.";
     } else {
         // Decode the JSON plan data passed from the hidden field (THIS IS THE SCALED DATA FROM JS)
         $plan = json_decode(html_entity_decode($_POST['plan']), true);
 
         if (!$plan || !is_array($plan)) {
-            $error = "❌ Error: Invalid plan structure or data loss during save!";
+            // Standardized error message
+            $error = "<strong>Invalid plan structure</strong> or data loss during save. Please try regenerating the plan.";
         } else {
             $connection->begin_transaction();
             try {
@@ -438,20 +452,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
                 $connection->commit();
                 
                 // Redirect back to user_plans.php with a success message
-                $_SESSION['success'] = "✅ Success: Plan saved successfully and preferences updated! See your new, calorie-correct plan below.";
+                // Standardized redirect success message
+                $_SESSION['success'] = "Plan saved successfully! Your preferences have been updated.";
                 header("Location: user_dietPlan.php");
                 exit;
 
             } catch (Exception $e) {
                 // 🔸 Rollback if any query fails
                 $connection->rollback();
-                $error = "❌ Error: MySQL error during save operation. " . $e->getMessage();
+                // Standardized error message (using <strong>)
+                $error = "An unexpected error occurred while saving your plan. Please try again. (Details: <strong>" . $e->getMessage() . "</strong>)";
                 error_log($e->getMessage());
             }
         }
     }
 }
 ?>
+
 
 <main class="flex-1 overflow-y-auto p-8 bg-gray-50">
     <!-- Updated color: sky-400 -> emerald-400 -->
@@ -557,15 +574,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
         </form>
 
         <!-- Container for the calorie summary calculated by PHP/generator -->
-        <div id="plan-summary-container">
-            <div class="bg-blue-50 border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 shadow-sm">
-                <h4 class="font-bold mb-1">Target Summary</h4>
-                <p class="text-sm">
-                    **Daily Target:** <span id="daily-target-display" class="font-extrabold text-blue-800"><?= $dailyTarget ?> kcal</span><br>
-                    **Base Plan Avg:** <span id="base-plan-avg-display"><?= $baseTotalCalories ?> kcal</span> (The plan's starting average before scaling)
-                </p>
-                <p class="text-xs mt-2 font-semibold">Scaling Factor Applied: <span id="scaling-factor-display" class="text-red-600">Calculating...</span></p>
-                <p class="text-xs font-semibold">Final Scaled Plan Avg: <span id="scaled-plan-avg-display" class="text-blue-800">...</span></p>
+               <!-- Container for the calorie summary calculated by PHP/generator -->
+        <div id="plan-summary-container" class="mt-6">
+            <div class="bg-white p-6 border-l-4 border-emerald-500 rounded-lg shadow-xl">
+                <h4 class="text-lg font-bold text-gray-800 mb-4">Your Personalized Calorie Goal</h4>
+                
+                <div class="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-6">
+                    
+                    <!-- 1. Daily Target (The PHP calculated minimum/safe target) -->
+                    <div class="p-3 bg-emerald-50 rounded-lg flex-1">
+                        <p class="text-sm font-semibold text-gray-600">Daily Target (TDEE Adjusted)</p>
+                        <p class="text-3xl font-extrabold text-emerald-800 mt-1">
+                            <span id="daily-target-display"><?= $dailyTarget ?></span> kcal
+                        </p>
+                    </div>
+
+                    <!-- 2. Final Scaled Plan Avg (Updated by JS after scaling the meal plan) -->
+                    <!-- This will show the final average calories of the 7-day plan after quantity adjustments -->
+                    <div class="p-3 bg-blue-50 rounded-lg flex-1">
+                        <p class="text-sm font-semibold text-gray-600">Plan Average </p>
+                        <p class="text-3xl font-extrabold text-blue-800 mt-1">
+                            <span id="scaled-plan-avg-display">0</span> kcal
+                        </p>
+                        <!-- Hidden element to still carry the scaling factor for internal use if needed -->
+                        <span id="scaling-factor-display" class="hidden"></span>
+                    </div>
+                </div>
             </div>
         </div>
         

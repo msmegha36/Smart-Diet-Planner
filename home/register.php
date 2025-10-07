@@ -3,7 +3,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // NOTE: We assume 'db_conn.php' exists in the config directory relative to this file's execution.
-// This PHP logic remains untouched as it handles the backend registration and diet planning.
+// This PHP logic remains untouched as it handles the backend registration.
 include(__DIR__ . '/../config/db_conn.php');
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -15,7 +15,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email        = mysqli_real_escape_string($connection, $_POST['email']);
     $pass         = mysqli_real_escape_string($connection, $_POST['password']);
     $gender       = mysqli_real_escape_string($connection, $_POST['gender']);
+    
+    // Health issues handling: Implode array into comma-separated string
+    // Since Alpine manages hidden inputs named health_issues[], we implode the array.
     $health_issues = isset($_POST['health_issues']) ? implode(', ', $_POST['health_issues']) : 'None';
+    // Ensure 'None' is handled if other issues are present
+    $health_issues = (str_contains($health_issues, 'None') && count($_POST['health_issues']) > 1) 
+                     ? trim(str_replace('None,', '', $health_issues), ', ') 
+                     : $health_issues;
     $health_issues = mysqli_real_escape_string($connection, $health_issues);
 
     $dietary      = mysqli_real_escape_string($connection, $_POST['food']);
@@ -32,7 +39,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
-    // Hash password
+    // Hash password (using MD5 for existing system compatibility)
     $hashed_pass = md5($pass);
 
     // Insert user into reg table
@@ -46,174 +53,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
     if ($stmt_reg->execute()) {
-        $user_id = mysqli_insert_id($connection);
         $stmt_reg->close();
-
-        // --- 1. Map Inputs for Calculation ---
-        $inputActivity = $activity;
-        $currentGoal = $goal;
-        $inputDietary = $dietary;
-
-        // --- 2. Correct BMR and TDEE Calculation (Mifflin-St Jeor) ---
-        // Calculate BMR
-        $bmr = ($gender === 'male')
-            ? (10 * $weight) + (6.25 * $height) - (5 * $age) + 5
-            : (10 * $weight) + (6.25 * $height) - (5 * $age) - 161;
-
-        $bmrAdjusted = $bmr;
-        // Apply Activity Multiplier to get TDEE (Total Daily Energy Expenditure)
-        switch ($inputActivity) {
-            case 'sedentary': $bmrAdjusted *= 1.2; break;
-            case 'light': $bmrAdjusted *= 1.375; break;
-            case 'moderate': $bmrAdjusted *= 1.55; break;
-            case 'active': $bmrAdjusted *= 1.725; break;
-            default: $bmrAdjusted *= 1.2;
-        }
-
-        $tdee = round($bmrAdjusted);
-        $bmi = $weight / pow($height / 100, 2);
         
-        // --- 3. Calculate Final Target Calories & Goal Adjustment ---
-        $calorieAdjustment = 0;
-        switch ($currentGoal) {
-            case 'weight_loss': $calorieAdjustment = -500; break;
-            case 'weight_gain': $calorieAdjustment = 500; break;
-            case 'muscle_build': $calorieAdjustment = 300; break;
-            case 'balanced': $calorieAdjustment = 0; break;
-        }
+        // NO PLAN GENERATION OR SAVING PERFORMED HERE. Only simple success message.
+        echo "<script>alert('✅ Registration successful! Please log in to continue.'); window.location='login.php';</script>";
 
-        $targetCalories = $tdee + $calorieAdjustment;
-
-        // Ensure target calories is safe minimum (WHO/medical standards)
-        $dailyTarget = max(($gender === 'male' ? 1500 : 1200), round($targetCalories));
-        
-        $recommendedGoal = $currentGoal;
-        $recommendedDietary = $inputDietary;
-        $recommendationNote = "";
-        $finalHealthFocus = "none"; // Default focus
-
-        // --- 4. Smart Health Adjustment & Health Focus Determination ---
-        $health = strtolower($health_issues);
-
-        // Adjust parameters based on detected health issues
-        if (str_contains($health, 'diabetes')) {
-            $finalHealthFocus = 'diabetes';
-            $recommendedDietary = 'veg';
-            $recommendationNote .= "For Diabetes, a low-GI vegetarian plan is prioritized. ";
-            $dailyTarget = max(1500, $dailyTarget - 300);
-        }
-
-        if (str_contains($health, 'hypertension')) {
-            $finalHealthFocus = 'hypertension';
-            $recommendationNote .= "For Hypertension, a low-sodium plan is prioritized. ";
-            $dailyTarget = max(1500, $dailyTarget - 100);
-        }
-
-        if (str_contains($health, 'obesity')) {
-            $finalHealthFocus = 'obesity';
-            if ($currentGoal !== 'weight_loss') {
-                $recommendedGoal = 'weight_loss';
-                $dailyTarget = max(1400, $dailyTarget - 400);
-                $recommendationNote .= "Due to Obesity, the goal has been adjusted to Weight Loss. ";
-            }
-        }
-
-        if (str_contains($health, 'heart')) {
-            $finalHealthFocus = 'heart_disease';
-            $recommendedDietary = 'veg';
-            $recommendationNote .= "For Heart health, a low-fat vegetarian plan is assigned. ";
-            $dailyTarget = max(1500, $dailyTarget - 200);
-        }
-
-        if (str_contains($health, 'pcos') || str_contains($health, 'pcod')) {
-            $finalHealthFocus = 'pcos';
-            $recommendedDietary = 'veg';
-            $recommendationNote .= "For PCOS/PCOD, a low-GI vegetarian plan is used. ";
-            $dailyTarget = max(1600, $dailyTarget - 150);
-        }
-        
-        if (str_contains($health, 'thyroid') && $dailyTarget < 1700) {
-            $dailyTarget = 1700;
-            $recommendationNote .= "Thyroid condition detected — adjusted to ensure moderate calorie intake. ";
-        }
-
-        // --- 5. Plan Fetching & Insertion (Using new parameters) ---
-        $planFound = false;
-        $focusesToTry = [$finalHealthFocus, 'none'];
-        $finalPlanFocus = '';
-        $tempPlan = [];
-
-        foreach ($focusesToTry as $focus) {
-            // Attempt to fetch the plan using the current focus
-            $planQuery = "
-                SELECT 
-                    day_number, meal_time, meal_text, quantity, 
-                    protein, carbs, fat, calories
-                FROM diet_plans 
-                WHERE goal=? AND dietary=? AND activity=? AND health_focus=?
-                ORDER BY day_number ASC, FIELD(meal_time, 'breakfast','mid_morning','lunch','snack','dinner','snack3')
-            ";
-            
-            $stmt = $connection->prepare($planQuery);
-            $stmt->bind_param("ssss", $recommendedGoal, $recommendedDietary, $activity, $focus);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            
-            if ($res->num_rows >= 35) { // Check for a reasonable number of meals (7 days * 5 meals minimum)
-                while ($meal = $res->fetch_assoc()) {
-                    $tempPlan[] = $meal;
-                }
-                $planFound = true;
-                $finalPlanFocus = $focus;
-                $stmt->close();
-                break; // Exit the loop if plan is found
-            }
-            
-            $stmt->close();
-        }
-
-        if ($planFound) {
-            // Insert the found plan into user_diet_plans
-            foreach ($tempPlan as $meal) {
-                $insert = $connection->prepare("
-                    INSERT INTO user_diet_plans
-                    (user_id, day_number, meal_time, meal_text, protein, carbs, fat, calories)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $insert->bind_param(
-                    "iissiiii",
-                    $user_id,
-                    $meal['day_number'],
-                    $meal['meal_time'],
-                    $meal['meal_text'],
-                    $meal['protein'],
-                    $meal['carbs'],
-                    $meal['fat'],
-                    $meal['calories']
-                );
-                $insert->execute();
-                $insert->close();
-            }
-
-            // 🥗 Smart Summary
-            $planLabel = ucfirst(str_replace('_', ' ', $recommendedGoal)) . " – " . ucfirst($recommendedDietary) . " Plan" . ($finalPlanFocus !== 'none' ? " (Focus: " . ucfirst($finalPlanFocus) . ")" : "");
-            if ($finalPlanFocus !== $finalHealthFocus) {
-                 $recommendationNote .= " **Note: A health-specific plan was unavailable, falling back to a general plan.**";
-            }
-
-            echo "<script>
-                alert('✅ Personalized {$planLabel} generated successfully!\\n'.
-                'BMI: ".round($bmi,1)."\\nCalculated TDEE: ".round($tdee)." kcal\\nTarget: ~{$dailyTarget} kcal/day\\n{$recommendationNote}');
-                window.location='login.php';
-            </script>";
-
-        } else {
-            // If no plan was found, even with fallback
-            echo "<script>
-                alert('❌ Error: No complete 7-day plan found for the combination (Goal: {$recommendedGoal}, Diet: {$recommendedDietary}, Activity: {$activity}, Health Focus: {$finalHealthFocus} or none). Please contact support or try different options.');
-                window.location='register.php'; // Redirect back to registration
-            </script>";
-        }
     } else {
         echo "<script>alert('Error inserting user: " . mysqli_error($connection) . "');</script>";
     }
@@ -226,6 +70,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
   <style>
+    :root { 
+        font-family: 'Inter', sans-serif; 
+    } 
     /* Custom Animations */
     @keyframes spin-slow {
       0% { transform: rotate(0deg); }
@@ -241,9 +88,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     .animate-fade-in-up { animation: fade-in 1.2s ease-in-out; }
 
     /* Custom validity message style for better visibility */
-    input:invalid:not(:placeholder-shown) {
-        border-color: #ef4444; /* red-500 */
-    }
+    input:invalid:not(:placeholder-shown), select:invalid:not([value=""]) { 
+        border-color: #ef4444; /* red-500 */ 
+    } 
     .error-message {
         color: #ef4444;
         margin-top: 0.25rem;
@@ -258,19 +105,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <?php include 'components/navbar.php'; ?>
 
 <!-- Main Form Container -->
-<main class="flex items-center justify-center min-h-screen px-6 py-16 bg-gray-50">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-12">
+<main class="flex items-center justify-center min-h-screen px-4 sm:px-6 py-16 bg-gray-50">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8 sm:p-12">
     <h1 class="text-3xl font-bold text-emerald-700 mb-8 text-center">Create Your Account</h1>
 
     <!-- Progress Bar -->
-    <div class="flex justify-center mb-10 space-x-4 text-lg font-semibold items-center">
-      <span id="progress-step-1" class="progress-step w-10 h-10 flex items-center justify-center rounded-full border border-emerald-600 bg-emerald-600 text-white">1</span>
+    <div class="flex justify-center mb-10 space-x-2 sm:space-x-4 text-sm sm:text-lg font-semibold items-center">
+      <span id="progress-step-1" class="progress-step w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full border border-emerald-600 bg-emerald-600 text-white">1</span>
       <span class="text-gray-400">───</span>
-      <span id="progress-step-2" class="progress-step w-10 h-10 flex items-center justify-center rounded-full border border-emerald-600 text-gray-700">2</span>
+      <span id="progress-step-2" class="progress-step w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full border border-emerald-600 text-gray-700">2</span>
       <span class="text-gray-400">───</span>
-      <span id="progress-step-3" class="progress-step w-10 h-10 flex items-center justify-center rounded-full border border-emerald-600 text-gray-700">3</span>
+      <span id="progress-step-3" class="progress-step w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full border border-emerald-600 text-gray-700">3</span>
       <span class="text-gray-400">───</span>
-      <span id="progress-step-4" class="progress-step w-10 h-10 flex items-center justify-center rounded-full border border-emerald-600 text-gray-700">4</span>
+      <span id="progress-step-4" class="progress-step w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full border border-emerald-600 text-gray-700">4</span>
     </div>
 
     <form action="register.php" method="POST" class="space-y-10" id="registrationForm">
@@ -307,9 +154,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
           </div>
         </div>
         <div class="flex justify-end mt-8">
-          <!-- UPDATED: Use validateAndGoToStep(1, 2) -->
           <button type="button" onclick="validateAndGoToStep(1, 2)" 
-                  class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition">
+                  class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition shadow-md">
             Next →
           </button>
         </div>
@@ -344,45 +190,105 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </select>
           </div>
 
-        <!-- Health Issues Dropdown (Alpine.js) - Keep this as is -->
-        <div x-data="{ open: false, selected: [] }" class="relative">
-          <label class="block text-gray-700 font-medium mb-2">Health Issues</label>
-          <div @click="open = !open"
-               class="border rounded-lg px-5 py-3 text-lg bg-white flex justify-between items-center cursor-pointer focus:ring-2 focus:ring-emerald-500">
-            <span x-text="selected.length ? selected.join(', ') : 'Select health issues...'"></span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
-            </svg>
-          </div>
-          <div x-show="open" @click.away="open = false"
-               class="absolute z-10 mt-2 w-full bg-white border rounded-lg shadow-lg">
-            <ul class="max-h-56 overflow-y-auto">
-              <template x-for="issue in ['None', 'Diabetes', 'Hypertension', 'Thyroid Disorder', 'Obesity', 'Heart Disease', 'PCOS / PCOD']">
-                <li class="px-4 py-2 hover:bg-emerald-50 flex items-center space-x-2">
-                  <input type="checkbox" :value="issue" 
-                         @change="if($event.target.checked){ selected.push(issue) } else { selected = selected.filter(i => i !== issue) }"
-                         class="form-checkbox text-emerald-600 rounded">
-                  <span x-text="issue"></span>
-                </li>
+          <!-- Health Issues Dropdown (Alpine.js) - CRITICAL for GOAL RESTRICTION -->
+          <div x-data="{  
+              open: false,  
+              selected: ['None'], // Initialize default to 'None' 
+              issues: ['None', 'Diabetes', 'Hypertension', 'Thyroid Disorder', 'Obesity', 'Heart Disease', 'PCOS / PCOD'],
+              toggleIssue(issue) {
+                  const index = this.selected.indexOf(issue); 
+
+                  if (issue === 'None') {
+                      // 'None' is exclusive
+                      this.selected = ['None'];
+                  } else if (index > -1) { 
+                      // Deselect the item
+                      this.selected.splice(index, 1);
+                  } else { 
+                      // Select the item and remove 'None' if it exists
+                      const noneIndex = this.selected.indexOf('None');
+                      if (noneIndex > -1) {
+                          this.selected.splice(noneIndex, 1);
+                      }
+                      this.selected.push(issue);
+                  } 
+
+                  // If array is empty after toggling, revert to 'None'
+                  if (this.selected.length === 0) {
+                      this.selected = ['None'];
+                  }
+
+                  // Force reactivity update. The $watch will call updateGoalOptions.
+                  this.selected = [...this.selected]; 
+                  
+              },
+              init() {  
+                  // Initial call and watch for reactivity 
+                  $watch('selected', (value) => { 
+                      // This ensures that if the user selects something, 'None' is removed.
+                      if (value.length > 1 && value.includes('None')) { 
+                          this.selected = value.filter(i => i !== 'None'); 
+                          // Prevent infinite loop by not calling updateGoalOptions here, 
+                          // the watcher will fire again with the filtered list.
+                          return;
+                      } else if (value.length === 0) { 
+                          this.selected = ['None']; 
+                           // Prevent infinite loop
+                           return;
+                      } 
+                      
+                      // Now call the global filtering function with the definitive list
+                      if (typeof updateGoalOptions === 'function') {
+                          updateGoalOptions(this.selected);
+                      }
+                  }); 
+                  
+                  // Initial setup: call updateGoalOptions once the Alpine component is ready
+                  if (typeof updateGoalOptions === 'function') {
+                      updateGoalOptions(this.selected);
+                  }
+              } 
+          }" class="relative">
+              <label class="block text-gray-700 font-medium mb-2">Health Issues</label>
+              <div @click="open = !open"
+                  class="border rounded-lg px-5 py-3 text-lg bg-white flex justify-between items-center cursor-pointer focus:ring-2 focus:ring-emerald-500 shadow-sm">
+                  <!-- Display selected issues, ignoring 'None' if others exist -->
+                  <span x-text="selected.filter(i => i !== 'None').length ? selected.filter(i => i !== 'None').join(', ') : 'None selected'"></span>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+                  </svg>
+              </div>
+              <div x-show="open" @click.away="open = false"
+                  class="absolute z-10 mt-2 w-full bg-white border rounded-lg shadow-lg">
+                  <ul class="max-h-56 overflow-y-auto">
+                      <template x-for="issue in issues" :key="issue">
+                          <li class="px-4 py-2 hover:bg-emerald-50 flex items-center space-x-2 cursor-pointer" 
+                              @click.prevent="toggleIssue(issue)"
+                              >
+                              <input type="checkbox" :value="issue" :checked="selected.includes(issue)"
+                                  class="form-checkbox text-emerald-600 rounded pointer-events-none">
+                              <span x-text="issue"></span>
+                          </li>
+                      </template>
+                  </ul>
+              </div>
+              <!-- Hidden inputs for submission -->
+              <template x-for="issue in selected" :key="issue">
+                  <!-- We use a hidden input array for PHP submission -->
+                  <input type="hidden" name="health_issues[]" :value="issue">
               </template>
-            </ul>
+              <p class="text-sm text-gray-500 mt-2">Select one or more health issues.</p>
           </div>
-          <template x-for="issue in selected">
-            <input type="hidden" name="health_issues[]" :value="issue">
-          </template>
-          <p class="text-sm text-gray-500 mt-2">Select one or more health issues.</p>
-        </div>
-        <!-- End Health Issues Dropdown -->
+          <!-- End Health Issues Dropdown -->
 
         </div>
         <div class="flex justify-between mt-8">
           <button type="button" onclick="nextStep(1)" 
-                  class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition">
+                  class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition shadow-md">
             ← Back
           </button>
-          <!-- UPDATED: Use validateAndGoToStep(2, 3) -->
           <button type="button" onclick="validateAndGoToStep(2, 3)" 
-                  class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition">
+                  class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition shadow-md">
             Next →
           </button>
         </div>
@@ -404,17 +310,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       </select>
     </div>
 
-    <!-- Fitness Goal -->
+    <!-- Fitness Goal (Dynamically updated by JS) -->
     <div>
       <label class="block text-gray-700 font-medium mb-2">Fitness Goal</label>
-      <select name="goal" required 
+      <select name="goal" required id="goalSelect"
               class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
         <option value="">-- Select --</option>
-        <option value="weight_loss">Weight Loss</option>
-        <option value="weight_gain">Weight Gain</option>
-        <option value="muscle_build">Muscle Building</option>
-        <option value="balanced">Balanced Diet</option>
+        <!-- Options will be populated by JavaScript -->
       </select>
+      <!-- Message for goal restriction -->
+      <p id="goalRestrictionMessage" class="error-message hidden mt-2 text-sm font-medium"></p>
     </div>
 
     <!-- Activity Level -->
@@ -423,9 +328,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <select name="activity" required 
               class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
         <option value="">-- Select --</option>
-        <option value="light">Light Activity</option>
-        <option value="moderate">Moderate Activity</option>
-        <option value="active">Active</option>
+        <option value="light">Light Activity (Desk job, little exercise)</option>
+        <option value="moderate">Moderate Activity (Active job, 3-4 gym sessions/week)</option>
+        <option value="active">Active (Heavy physical labor, daily intense training)</option>
       </select>
     </div>
 
@@ -435,20 +340,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <select name="meal_type" required 
               class="w-full border rounded-lg px-5 py-3 text-lg focus:ring-2 focus:ring-emerald-500">
         <option value="">-- Select --</option>
-        <option value="3_meals">3 Meals/Day</option>
-        <option value="5_small">5 Small Meals</option>
+        <option value="3_meals">3 Main Meals (Breakfast, Lunch, Dinner)</option>
+        <option value="5_small">5 Small Meals (3 Main + 2 Snacks)</option>
       </select>
     </div>
 
   </div>
   <div class="flex justify-between mt-8">
     <button type="button" onclick="nextStep(2)" 
-            class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition">
+            class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition shadow-md">
       ← Back
     </button>
-    <!-- UPDATED: Use validateAndGoToStep(3, 4) -->
     <button type="button" onclick="validateAndGoToStep(3, 4)" 
-            class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition">
+            class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition shadow-md">
       Next →
     </button>
   </div>
@@ -461,11 +365,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <p class="text-gray-600 mb-6">Review your details and submit your registration.</p>
         <div class="flex justify-between mt-8">
           <button type="button" onclick="nextStep(3)" 
-                  class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition">
+                  class="bg-gray-300 text-gray-700 px-8 py-3 text-lg rounded-lg hover:bg-gray-400 transition shadow-md">
             ← Back
           </button>
           <button type="submit" 
-                  class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition">
+                  class="bg-emerald-600 text-white px-8 py-3 text-lg rounded-lg hover:bg-emerald-700 transition shadow-lg">
             Submit
           </button>
         </div>
@@ -487,6 +391,101 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!-- JavaScript Validation and Step Logic -->
 <script>
+    // Store original goal options for restoration 
+    const originalGoalOptions = [ 
+        { value: 'weight_loss', text: 'Weight Loss' }, 
+        { value: 'weight_gain', text: 'Weight Gain' }, 
+        { value: 'muscle_build', text: 'Muscle Building' }, 
+        { value: 'balanced', text: 'Balanced Diet' }, 
+    ]; 
+     
+    // --- CONDITIONAL GOAL LOGIC --- 
+    function updateGoalOptions(selectedIssues) { 
+        const goalSelect = document.getElementById('goalSelect'); 
+        const messageElement = document.getElementById('goalRestrictionMessage'); 
+         
+        if (!goalSelect || !messageElement) return; 
+
+        const restrictiveIssues = [ 
+            'Diabetes',  
+            'Hypertension',  
+            'Obesity',  
+            'Heart Disease',  
+            'PCOS / PCOD' 
+        ]; 
+         
+        // Check if any restrictive issue is selected (ignoring 'None' if others exist) 
+        const issuesForCheck = selectedIssues.filter(issue => issue !== 'None');
+        const isRestricted = issuesForCheck.some(issue => restrictiveIssues.includes(issue)); 
+         
+        // Save the current value before clearing 
+        const currentValue = goalSelect.value; 
+        
+        // Temporarily store the options to ensure 'Select' is always first
+        const optionsToKeep = [];
+        optionsToKeep.push('<option value="">-- Select --</option>'); // Always keep the default option
+
+        if (isRestricted) { 
+            // --- Restriction Logic: Only show non-aggressive goals --- 
+            const restrictedGoals = ['weight_gain', 'muscle_build']; 
+            let restrictionText = "⚠️ Goals focused on high caloric surplus (Weight Gain / Muscle Building) are disabled due to selected health issues."; 
+
+            // Add only non-restricted options (Weight Loss, Balanced Diet) 
+            originalGoalOptions.forEach(option => { 
+                if (!restrictedGoals.includes(option.value)) { 
+                    optionsToKeep.push(`<option value="${option.value}">${option.text}</option>`); 
+                } 
+            }); 
+             
+            // Rebuild the select options
+            goalSelect.innerHTML = optionsToKeep.join('');
+
+            // Clear goal selection if the previously selected goal is now restricted
+            if (restrictedGoals.includes(currentValue)) { 
+                goalSelect.value = ''; 
+                // Set custom validity to force a selection 
+                goalSelect.setCustomValidity("Please select an available goal."); 
+            } else if (currentValue && !restrictedGoals.includes(currentValue)) {
+                // Restore selection if it's a valid, non-restricted option
+                goalSelect.value = currentValue;
+            } else {
+                 goalSelect.value = '';
+            }
+
+
+            messageElement.innerHTML = restrictionText; 
+            messageElement.classList.remove('hidden'); 
+
+        } else { 
+            // --- No Restriction Logic: Show all options --- 
+             
+            // Add all original options back 
+            originalGoalOptions.forEach(option => { 
+                optionsToKeep.push(`<option value="${option.value}">${option.text}</option>`);
+            }); 
+            
+            // Rebuild the select options
+            goalSelect.innerHTML = optionsToKeep.join('');
+
+            // Restore the previously selected value 
+            if (currentValue && goalSelect.querySelector(`option[value="${currentValue}"]`)) { 
+                 goalSelect.value = currentValue; 
+            } else {
+                 goalSelect.value = '';
+            }
+             
+            // Clear custom validity and hide message 
+            goalSelect.setCustomValidity("");  
+            messageElement.classList.add('hidden'); 
+            messageElement.textContent = ''; 
+        } 
+
+        // Trigger validation if the goal select is currently visible 
+        if (!document.getElementById('step3').classList.contains('hidden')) { 
+            goalSelect.reportValidity(); 
+        } 
+    } 
+
     // --- STEP NAVIGATION LOGIC ---
     function nextStep(stepNum) {
         const totalSteps = 4;
@@ -496,19 +495,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             if (stepElement) {
                 stepElement.classList.toggle('hidden', i !== stepNum);
+                if (i === stepNum) {
+                     stepElement.classList.add('animate-fade-in'); // Apply animation on display
+                } else {
+                     stepElement.classList.remove('animate-fade-in');
+                }
             }
             
             if (progressElement) {
                 // Update progress bar indicator style
                 if (i <= stepNum) {
                     progressElement.classList.add('bg-emerald-600', 'text-white');
-                    progressElement.classList.remove('bg-gray-300', 'text-gray-700');
+                    progressElement.classList.remove('text-gray-700', 'border-emerald-600');
                 } else {
                     progressElement.classList.remove('bg-emerald-600', 'text-white');
-                    progressElement.classList.add('bg-gray-300', 'text-gray-700');
+                    progressElement.classList.add('border-emerald-600', 'text-gray-700');
                 }
             }
         }
+         
+        // CRITICAL FIX: When navigating to step 3, reliably read the current selection from the hidden inputs
+        if (stepNum === 3) { 
+            // Read values from the hidden inputs generated by Alpine in step 2
+            const hiddenInputs = document.querySelectorAll('#step2 input[name="health_issues[]"]');
+            let selectedIssues = Array.from(hiddenInputs).map(input => input.value).filter(v => v); 
+            
+            // Ensure the array is never empty for the function call
+            if (selectedIssues.length === 0) {
+                 selectedIssues = ['None'];
+            }
+            
+            updateGoalOptions(selectedIssues); 
+        } 
     }
 
     // Function to check if all required fields in the current step are valid
@@ -534,13 +552,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 allValid = false;
                 // Force the browser to display its native error tooltip briefly
                 input.reportValidity(); 
-                // Also ensures our custom error span (if present) is updated
-                const errorMessageElement = input.nextElementSibling;
-                if (errorMessageElement && input.customError) {
-                    errorMessageElement.textContent = input.validationMessage;
-                    errorMessageElement.classList.remove('hidden');
-                }
             }
+             
+            // Custom logic for SELECT elements which don't trigger native error messages well 
+            if (input.tagName === 'SELECT' && input.value === '') { 
+                 input.setCustomValidity('Please select an option.'); 
+                 input.reportValidity(); 
+                 allValid = false; 
+            } else if (input.tagName === 'SELECT') { 
+                input.setCustomValidity(''); // Clear if valid 
+            } 
         });
         return allValid;
     }
@@ -563,18 +584,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Helper function to update the visible error span
     function updateErrorMessage(textbox) {
         const errorMessageElement = textbox.nextElementSibling;
-        if (errorMessageElement) {
-            if (textbox.customError || textbox.validationMessage) {
-                 // Prioritize custom message if set, otherwise use native message
-                errorMessageElement.textContent = textbox.validationMessage; 
-                errorMessageElement.classList.remove('hidden');
-            } else {
-                errorMessageElement.classList.add('hidden');
-            }
-        }
+        if (errorMessageElement && errorMessageElement.classList.contains('error-message')) {
+            // Prioritize custom message if set, otherwise use native message 
+            if (textbox.validationMessage && !textbox.checkValidity()) {  
+                errorMessageElement.textContent = textbox.validationMessage;  
+                errorMessageElement.classList.remove('hidden'); 
+            } else { 
+                errorMessageElement.classList.add('hidden'); 
+            } 
+        } 
     }
 
-    // --- PASSWORD VALIDATION ---
+ 
+ // --- PASSWORD VALIDATION ---
     function validatePassword(textbox) {
         // Clear previous custom error message
         textbox.setCustomValidity(''); 
@@ -594,19 +616,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         return textbox.checkValidity(); 
     }
         
+        
     // --- EMAIL VALIDATION ---
     function validateEmail(textbox) {
-        textbox.setCustomValidity('');
-
-        if (textbox.validity.valueMissing) {
-            textbox.setCustomValidity('Entering an email address is required!');
-        } else if (textbox.validity.typeMismatch) {
-            textbox.setCustomValidity('Please enter a valid email address (e.g., user@example.com).');
+        textbox.setCustomValidity("");
+        // Simple regex check for email format
+        const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailPattern.test(textbox.value)) {
+            textbox.setCustomValidity("Please enter a valid email address (e.g., user@example.com).");
+        } else {
+            textbox.setCustomValidity("");
         }
-        
         updateErrorMessage(textbox);
-        return textbox.checkValidity();
-    } 
+    }
 
     // --- NUMBER INPUT VALIDATION (Age, Weight, Height) ---
     function validateNumberInput(textbox, minVal, maxVal) {

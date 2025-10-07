@@ -105,14 +105,14 @@ if ($user['health_issues'] && $user['health_issues'] !== 'None') {
         $weeks = ceil($target_loss_kg / 0.75);
         $months = max(3, ceil($weeks / 4.3)); // Minimum 3 months
         
-        $estimate_text = "Approximately **{$months} months** to achieve significant weight reduction ($target_loss_kg kg) for better management.";
+        $estimate_text = "Approximately <strong>{$months} months</strong> to achieve significant weight reduction ($target_loss_kg kg) for better management.";
     } elseif (in_array($issue, ['Diabetes', 'Hypertension', 'Heart Disease'])) {
-        $estimate_text = "**6 to 12 months** of consistent adherence for stabilization of key health markers (e.g., A1C, blood pressure).";
+        $estimate_text = "<strong>6 to 12 months</strong> of consistent adherence for stabilization of key health markers (e.g., A1C, blood pressure).";
     } elseif (in_array($issue, ['Thyroid Disorder', 'PCOS / PCOD'])) {
-        $estimate_text = "**3 to 6 months** of dedicated dietary focus to see symptomatic improvements.";
+        $estimate_text = "<strong>3 to 6 months</strong> of dedicated dietary focus to see symptomatic improvements.";
     }
 
-    $timeline_estimate = "Based on your plan and health issue (**{$issue}**), significant progress toward management is estimated to take: **{$estimate_text}**.";
+    $timeline_estimate = "Based on your plan and health issue (<strong>{$issue}</strong>), significant progress toward management is estimated to take: <strong>{$estimate_text}</strong>.";
 }
 // --- END Health Issue Management Timeline ---
 
