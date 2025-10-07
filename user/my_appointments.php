@@ -83,7 +83,7 @@ $result = $stmt->get_result();
     </div>
   <?php endif; ?>
 </main>
-<?php include 'components/footer.php'; ?>
+
 <?php
 // Close the statement and connection
 if (isset($stmt)) {

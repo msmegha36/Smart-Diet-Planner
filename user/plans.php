@@ -248,7 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
             } 
             
             return false; // Return false if no rows found.
-        }; 
+        };
 
         // --- Fetch Attempt 1: Highly Filtered Plan ---
         $planAttempt = $fetchPlanRows($currentGoal, $inputDietary, $currentActivity, $currentMealType, $finalHealthFocus);
@@ -275,12 +275,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
                 $dayNum = $mealRow['day_number'];
                 
                 // Get the goal-adjusted BASE macro/calorie values directly from the DB row
-                $baseProtein = $mealRow['protein'];
-                $baseCarbs   = $mealRow['carbs'];
-                $baseFat     = $mealRow['fat'];
-                $baseCalories= $mealRow['calories'];
+                $baseProtein = floatval($mealRow['protein']);
+                $baseCarbs   = floatval($mealRow['carbs']);
+                $baseFat     = floatval($mealRow['fat']);
+                $baseCalories= floatval($mealRow['calories']);
                 
-                // CRITICAL FIX: Use the numeric 'base_quantity' (grams) for scaling, and 'quantity' for display.
+                // CRITICAL FIX: Use the numeric 'base_quantity' (grams) for dynamic scaling, and 'quantity' for display text.
                 $baseQuantityInGrams = floatval($mealRow['base_quantity']); // Numeric grams for calculation
                 $displayQuantityString = $mealRow['quantity']; // e.g., "1 plate", "2 chapatis"
 
@@ -307,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
                     'fat_per_unit'     => $mealRow['fat_per_unit'], 
                     
                     // Store the numeric Base Quantity (grams) for JS scaling
-                    'base_quantity_grams' => $baseQuantityInGrams, // NEW KEY
+                    'base_quantity_grams' => $baseQuantityInGrams, // Numeric grams for scaling (e.g., 160)
                     'unit'          => $mealRow['unit'],          
                     
                     // Store the Goal-Adjusted BASE macros/calories directly from the DB
@@ -315,8 +315,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_plan'])) {
                     'carbs'         => $baseCarbs,
                     'fat'           => $baseFat,
                     'calories'      => $baseCalories,
-                    'quantity_string' => $displayQuantityString, // NEW KEY for descriptive string
-                    'quantity'      => $displayQuantityString, // Retain original key for initial display
+                    'quantity_string' => $displayQuantityString, // Descriptive text (e.g., "2 parathas + 1/2 cup curd")
+                    'quantity'      => $displayQuantityString, // Used for initial UI display (will be overwritten by JS)
                 ];
 
                 // Add meal to the day's meals
@@ -392,11 +392,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
                 $delStmt->close();
 
                 // 🔹 Step 2: Insert new plan
-                // NOTE: This assumes the user's `user_diet_plans` table is structured for one meal per row.
                 $insertStmt = $connection->prepare("
                     INSERT INTO user_diet_plans 
-                    (user_id, day_number, meal_time, meal_text, quantity, protein, carbs, fat, calories)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (user_id, day_number, meal_time, meal_text, quantity, portion, protein, carbs, fat, calories)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 if (!$insertStmt) { throw new Exception("Prepare failed (INSERT): " . $connection->error); }
 
@@ -409,8 +408,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
                         // Only save non-SKIP meals.
                         if (trim(strtoupper($meal_text)) === 'SKIP') continue; 
                         
-                        // IMPORTANT: Use the SCALED data passed from JS here
-                        $quantity   = trim($meal['quantity'] ?? ''); // Final scaled portion (e.g., "170g")
+                        // 🔥 CRITICAL FIX: Extracting the separate numerical and descriptive values from the JS payload
+                        
+                        // 1. Scaled Numerical Weight (e.g., 160) -> user_diet_plans.quantity
+                        // This is the numerical, SCALED value based on calories and base_quantity.
+                        $scaled_numerical_quantity = trim($meal['scaled_grams_only'] ?? '');
+                        // 2. Descriptive Text (e.g., "2 parathas + 1/2 cup curd") -> user_diet_plans.portion
+                        // This is the exact descriptive text from diet_plans.quantity.
+                        $descriptive_portion = $meal['quantity'] ; 
+
                         $protein    = intval($meal['protein'] ?? 0);
                         $carbs      = intval($meal['carbs'] ?? 0);
                         $fat        = intval($meal['fat'] ?? 0);
@@ -418,13 +424,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
 
                         if (empty($meal_time) || empty($meal_text)) continue;
 
+                        // CRITICAL: The bind_param must include 10 types (iisssiiiii) for 10 fields
                         $insertStmt->bind_param(
-                            "iisssiiii",
+                            "iissssiiii", 
                             $user_id,
                             $day_number,
                             $meal_time,
                             $meal_text,
-                            $quantity, 
+                            $scaled_numerical_quantity, // Binds to user_diet_plans.quantity (NUMERIC GRAMS)
+                            $descriptive_portion,       // Binds to user_diet_plans.portion (DESCRIPTIVE TEXT)
                             $protein,
                             $carbs,
                             $fat,
@@ -490,7 +498,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
         <?php if ($bmi > 0): ?>
             <p class="text-sm text-gray-500 mb-4">Your calculated BMI: <strong class="text-emerald-600"><?= $bmi ?></strong> kg/m². This metric is used for enhanced safety checks.</p>
         <?php endif; ?>
-        
+      
         <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             <!-- Note: Value is set to the last selected/finalized value -->
@@ -596,206 +604,229 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
                         <p class="text-3xl font-extrabold text-blue-800 mt-1">
                             <span id="scaled-plan-avg-display">0</span> kcal
                         </p>
-                        <!-- Hidden element to still carry the scaling factor for internal use if needed -->
-                        <span id="scaling-factor-display" class="hidden"></span>
                     </div>
+                    
+                    <!-- 3. Base Plan Avg (The average of the plan fetched from the database)
+                    <div class="p-3 bg-red-50 rounded-lg flex-1">
+                        <p class="text-sm font-semibold text-gray-600">Base Plan Average</p>
+                        <p class="text-3xl font-extrabold text-red-800 mt-1">
+                            <span id="base-plan-avg-display"><?= $baseTotalCalories ?></span> kcal
+                        </p>
+                    </div> -->
                 </div>
             </div>
         </div>
-        
-        <div id="plan-display">
-            <?php foreach($loadedPlan as $day): 
-                // Display the BASE calculated daily totals as placeholders
-                $dayCal = round($day['Cal'] ?? '--');
-                $dayP = round($day['P'] ?? '--');
-                $dayC = round($day['C'] ?? '--');
-                $dayF = round($day['F'] ?? '--');
-            ?>
-            <!-- Day Container -->
-            <div class="mb-8 border border-gray-200 rounded-lg overflow-hidden shadow-md day-container" data-day-number="<?= $day['day_number'] ?>">
-                <!-- Updated color: bg-emerald-500, bg-emerald-600 -->
-                <div class="bg-emerald-500 text-white p-4 font-bold text-lg flex justify-between items-center">
-                    <span>Day <?= $day['day_number'] ?></span>
-                    <span class="text-sm bg-emerald-600 py-1 px-3 rounded-full">Total: <span class="day-calorie-total"><?= $dayCal ?></span> kcal</span> 
-                </div>
-                <!-- Display generator's macro totals -->
-                <div class="bg-emerald-100 p-3 text-sm font-semibold text-gray-700 flex justify-around">
-                    <span>Protein: <span class="day-protein-total"><?= $dayP ?></span>g</span>
-                    <span>Carbs: <span class="day-carbs-total"><?= $dayC ?></span>g</span>
-                    <span>Fat: <span class="day-fat-total"><?= $dayF ?></span>g</span>
-                </div>
-                <ul class="divide-y divide-gray-100">
-                    <?php foreach($day['meals'] as $index => $meal): ?>
-                        <li class="p-4 flex justify-between items-start hover:bg-gray-50 transition-colors meal-item" 
-                            data-meal-index="<?= $index ?>" 
-                            data-meal-time="<?= $meal['meal_time'] ?>"
-                            data-base-protein="<?= $meal['protein'] ?>"
-                            data-base-carbs="<?= $meal['carbs'] ?>"
-                            data-base-fat="<?= $meal['fat'] ?>"
-                            data-base-calories="<?= $meal['calories'] ?>"
-                            data-base-grams="<?= $meal['base_quantity_grams'] ?>"> <!-- CRITICAL: This is the numeric grams used for calculation -->
 
-                            <div class="flex-1 pr-4">
-                                <!-- Updated color: text-emerald-600 -->
-                                <p class="text-xs font-semibold uppercase text-emerald-600 mb-1"><?= ucwords(str_replace('_', ' ', $meal['meal_time'])) ?></p>
-                                <p class="text-gray-900 font-medium meal-text"><?= $meal['meal_text'] ?></p>
-                            </div>
-                            <div class="text-right flex-shrink-0">
-                                <p class="font-bold text-lg text-emerald-700 mb-1">
-                                    <!-- Displays the initial descriptive quantity (e.g., "1 plate") -->
-                                    <span class="meal-quantity-display"><?= $meal['quantity'] ?></span> 
-                                </p>
-                                <p class="text-xs text-gray-500">
-                                    <span class="meal-calorie-display"><?= $meal['calories'] ?></span> kcal
-                                </p>
-                                <p class="text-xs text-gray-400">
-                                    (<span class="meal-macro-display">P<?= $meal['protein'] ?> C<?= $meal['carbs'] ?> F<?= $meal['fat'] ?></span>)
-                                </p>
-                            </div>
-                        </li>
+        <!-- Plan Display Table -->
+        <div class="mt-8 overflow-x-auto">
+            <table class="min-w-full bg-white rounded-lg shadow-xl border border-gray-200">
+                <thead class="bg-gray-100 border-b border-gray-300">
+                    <tr>
+                        <th class="py-3 px-6 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Day / Meal</th>
+                        <th class="py-3 px-6 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Food Item</th>
+                        <th class="py-3 px-6 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Portion & Weight</th>
+                        <th class="py-3 px-6 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">P</th>
+                        <th class="py-3 px-6 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">C</th>
+                        <th class="py-3 px-6 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">F</th>
+                        <th class="py-3 px-6 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Kcal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($loadedPlan as $dayIndex => $day): ?>
+                    <?php $dayName = "Day " . ($dayIndex + 1); ?>
+                    
+                    <tr class="bg-emerald-50 border-b border-gray-200">
+                        <td colspan="7" class="py-2 px-6 font-extrabold text-lg text-emerald-800">
+                            <?= $dayName ?> 
+                            <!-- Display for daily totals - updated by JS -->
+                            <span class="ml-4 text-sm font-semibold text-gray-600 daily-cal-total" data-day="<?= $dayIndex + 1 ?>">
+                                (Total Kcal: <span class="daily-cal-value">0</span>)
+                            </span>
+                        </td>
+                    </tr>
+
+                    <?php foreach ($day['meals'] as $mealIndex => $meal): 
+                        // Skip meals are filtered out when saving but displayed here
+                        if (trim(strtoupper($meal['meal_text'])) === 'SKIP') {
+                             $meal['calories'] = $meal['protein'] = $meal['carbs'] = $meal['fat'] = 0; // Ensure skipped meals show 0 macros/calories
+                        }
+                    ?>
+                    <tr class="hover:bg-gray-50 border-b border-gray-100 meal-row" data-day="<?= $dayIndex + 1 ?>" data-meal-index="<?= $mealIndex ?>">
+                        <td class="py-3 px-6 text-sm font-semibold text-gray-700">
+                            <?= ucwords(str_replace(['snack1', 'snack2', 'snack3'], ['Snack 1', 'Snack 2', 'Snack 3'], $meal['meal_time'])) ?>
+                        </td>
+                        <td class="py-3 px-6 text-sm text-gray-900 font-medium meal-name"><?= $meal['meal_text'] ?></td>
+                        
+                        <td class="py-3 px-6 text-sm text-gray-700">
+                            <!-- 
+                                CRITICAL UPDATE: 
+                                1. 'meal-portion-text' holds the descriptive text (saved to 'portion' column).
+                                2. 'scaled-quantity-grams' holds the numerical weight (saved to 'quantity' column).
+                            -->
+                            <p class="text-sm text-gray-600 mt-2">
+                                <span class="font-medium">Portion:</span> <span class="meal-portion-text font-semibold text-emerald-800 mr-4"><?= $meal['quantity_string'] ?></span>
+                                <!-- Initial value is the base quantity. JS will overwrite this with the scaled amount. -->
+                                <span class="font-medium ml-2">Weight:</span> 
+                                <span class="scaled-quantity-grams font-bold text-blue-800" 
+                                      data-base-grams="<?= $meal['base_quantity_grams'] ?>" 
+                                      data-unit="<?= $meal['unit'] ?>">
+                                    <?= $meal['base_quantity_grams'] ?> <?= $meal['unit'] ?>
+                                </span>
+                            </p>
+                        </td>
+
+                        <!-- Macros and Calories (Initial values are BASE, JS will update these) -->
+                        <td class="py-3 px-6 text-sm text-right font-medium text-gray-700 macro-P" data-base-p="<?= $meal['protein'] ?>" data-unit-p="<?= $meal['protein_per_unit'] ?>">
+                            <?= $meal['protein'] ?> g
+                        </td>
+                        <td class="py-3 px-6 text-sm text-right font-medium text-gray-700 macro-C" data-base-c="<?= $meal['carbs'] ?>" data-unit-c="<?= $meal['carbs_per_unit'] ?>">
+                            <?= $meal['carbs'] ?> g
+                        </td>
+                        <td class="py-3 px-6 text-sm text-right font-medium text-gray-700 macro-F" data-base-f="<?= $meal['fat'] ?>" data-unit-f="<?= $meal['fat_per_unit'] ?>">
+                            <?= $meal['fat'] ?> g
+                        </td>
+                        <td class="py-3 px-6 text-sm text-right font-extrabold text-emerald-700 meal-cal" data-base-cal="<?= $meal['calories'] ?>" data-unit-cal="<?= $meal['calories_per_unit'] ?>">
+                            <?= $meal['calories'] ?>
+                        </td>
+                    </tr>
                     <?php endforeach; ?>
-                </ul>
-            </div>
-            <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
+
+    </section>
     <?php endif; ?>
+
 </main>
 
+<!-- JS for Dynamic Scaling -->
+<!-- The scaling logic is implemented in JS to ensure the user sees the real-time adjustments before saving. -->
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const basePlanInput = document.getElementById('js-base-plan-data');
-    const scaledPlanInput = document.getElementById('js-scaled-plan-data');
-    const dailyTargetInput = document.getElementById('js-daily-target');
-    const baseAvgCalInput = document.getElementById('js-base-avg-cal');
-    const saveButton = document.getElementById('save-plan-btn');
+    document.addEventListener('DOMContentLoaded', function() {
+        const basePlanDataEl = document.getElementById('js-base-plan-data');
+        const targetCalEl = document.getElementById('js-daily-target');
+        const baseAvgCalEl = document.getElementById('js-base-avg-cal');
+        const saveBtn = document.getElementById('save-plan-btn');
+        const scaledPlanInput = document.getElementById('js-scaled-plan-data');
+        const scaledAvgDisplay = document.getElementById('scaled-plan-avg-display');
+        const dailyCalDisplays = document.querySelectorAll('.daily-cal-total');
 
-    if (!basePlanInput || !scaledPlanInput || !dailyTargetInput || !baseAvgCalInput) {
-        // Only proceed if all necessary data inputs exist (i.e., a plan was successfully loaded)
-        return; 
-    }
+        if (!basePlanDataEl || !targetCalEl || !baseAvgCalEl) {
+            console.error("Missing essential plan data elements.");
+            return;
+        }
 
-    // --- 1. Get Base Data and Targets ---
-    const dailyTarget = parseFloat(dailyTargetInput.value);
-    const baseAvgCal = parseFloat(baseAvgCalInput.value);
-    let basePlanData = [];
+        const basePlan = JSON.parse(basePlanDataEl.value || '[]');
+        const dailyTarget = parseFloat(targetCalEl.value);
+        const baseAvgCalories = parseFloat(baseAvgCalEl.value);
 
-    try {
-        // Decode the plan data which was htmlspecialchars'd in PHP
-        const rawJson = basePlanInput.value;
-        basePlanData = JSON.parse(rawJson);
-    } catch (e) {
-        console.error("Error parsing base plan JSON:", e);
-        return;
-    }
+        if (basePlan.length === 0 || isNaN(dailyTarget) || dailyTarget <= 0 || isNaN(baseAvgCalories) || baseAvgCalories <= 0) {
+            console.error("Base plan data is invalid or empty. Cannot scale.");
+            // Still enable save if the button was rendered, allowing non-scaled save if PHP allowed it.
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+        }
 
-    if (dailyTarget <= 0 || baseAvgCal <= 0 || basePlanData.length === 0) {
-        console.warn("Missing necessary values for scaling. Skipping scaling.");
-        return;
-    }
+        // Calculate the scaling factor based on the average calories of the base plan vs. the target calories.
+        const scalingFactor = dailyTarget / baseAvgCalories;
+        const totalScaledCalories = []; // To calculate the new 7-day average
 
-    // --- 2. Calculate Scaling Factor ---
-    // This factor adjusts the entire 7-day plan's average calories to match the target.
-    const scalingFactor = dailyTarget / baseAvgCal;
-    document.getElementById('scaling-factor-display').textContent = scalingFactor.toFixed(3);
+        console.log(`Target: ${dailyTarget} kcal, Base Avg: ${baseAvgCalories} kcal. Factor: ${scalingFactor.toFixed(2)}`);
 
-    let totalScaledCalSum = 0; // For calculating the final average
+        /**
+         * Scales a numerical value based on the scaling factor.
+         * @param {number} value The base macro/calorie value.
+         * @returns {number} The scaled, rounded value.
+         */
+        function scaleValue(value) {
+            return Math.round(value * scalingFactor);
+        }
 
-    // --- 3. Iterate and Scale the Plan Data and UI ---
-    
-    // We create a deep copy of the base data to store the scaled results
-    const scaledPlanData = JSON.parse(JSON.stringify(basePlanData)); 
-    
-    // Iterate through each day container in the UI
-    document.querySelectorAll('.day-container').forEach(dayContainer => {
-        const dayNum = parseInt(dayContainer.getAttribute('data-day-number'));
-        const dayIndex = dayNum - 1; // 0-indexed array
-        
-        // Accumulators for the scaled daily totals
-        let scaledDayCal = 0;
-        let scaledDayP = 0;
-        let scaledDayC = 0;
-        let scaledDayF = 0;
+        // Iterate through the DOM to apply changes and build the final scaled plan data
+        basePlan.forEach((day, dayIndex) => {
+            let dayTotalCalories = 0;
+            const dayNum = day.day_number;
 
-        // Iterate through each meal item in the day
-        dayContainer.querySelectorAll('.meal-item').forEach(mealItem => {
-            const mealIndex = parseInt(mealItem.getAttribute('data-meal-index'));
-
-            // Get base data from attributes
-            const baseGrams = parseFloat(mealItem.getAttribute('data-base-grams'));
-            const baseCal = parseFloat(mealItem.getAttribute('data-base-calories'));
-            const baseP = parseFloat(mealItem.getAttribute('data-base-protein'));
-            const baseC = parseFloat(mealItem.getAttribute('data-base-carbs'));
-            const baseF = parseFloat(mealItem.getAttribute('data-base-fat'));
-            
-            // Skip meals with 0 calories or grams (e.g., placeholder "SKIP" meals)
-            if (baseGrams === 0 || baseCal === 0) return; 
-
-            // --- Scaling Calculation ---
-            // 1. Scale the numeric quantity (grams)
-            const scaledGrams = Math.round(baseGrams * scalingFactor);
-            
-            // 2. Scale the macros and calories proportionally
-            // Note: We use Math.round for displayable integers, but keep precise totals
-            const scaledCalories = Math.round(baseCal * scalingFactor);
-            const scaledProtein = Math.round(baseP * scalingFactor);
-            const scaledCarbs = Math.round(baseC * scalingFactor);
-            const scaledFat = Math.round(baseF * scalingFactor);
-
-            // Accumulate daily totals
-            scaledDayCal += scaledCalories;
-            scaledDayP += scaledProtein;
-            scaledDayC += scaledCarbs;
-            scaledDayF += scaledFat;
-            
-            // --- Update UI for the Meal ---
-            mealItem.querySelector('.meal-quantity-display').textContent = `${scaledGrams}g`; // Display as scaled grams
-            mealItem.querySelector('.meal-calorie-display').textContent = scaledCalories;
-            mealItem.querySelector('.meal-macro-display').textContent = `P${scaledProtein} C${scaledCarbs} F${scaledFat}`;
-            
-            // --- Update scaledPlanData for saving ---
-            if (scaledPlanData[dayIndex] && scaledPlanData[dayIndex].meals[mealIndex]) {
-                const mealToUpdate = scaledPlanData[dayIndex].meals[mealIndex];
+            day.meals.forEach((meal, mealIndex) => {
+                const mealSelector = `.meal-row[data-day="${dayNum}"][data-meal-index="${mealIndex}"]`;
+                const mealEl = document.querySelector(mealSelector);
                 
-                // Store the scaled values
-                mealToUpdate.quantity = `${scaledGrams}g`; // Final quantity string for saving
-                mealToUpdate.protein = scaledProtein;
-                mealToUpdate.carbs = scaledCarbs;
-                mealToUpdate.fat = scaledFat;
-                mealToUpdate.calories = scaledCalories;
+                // For 'SKIP' meals, only update the basePlan object and totals, don't try to update DOM
+                if (!mealEl || meal.meal_text.toUpperCase().trim() === 'SKIP') {
+                    // Update macros/calories to 0 in the JS object for saving (already done in PHP for display)
+                    meal.protein = 0;
+                    meal.carbs = 0;
+                    meal.fat = 0;
+                    meal.calories = 0; 
+                    meal.scaled_grams_only = 0; // Set scaled quantity to 0 for skipped meals
+                    totalScaledCalories.push(0); 
+                    return; 
+                }
                 
-                // These base values are no longer needed for saving but we can keep them for debug
-                delete mealToUpdate.base_quantity_grams; 
-                delete mealToUpdate.unit;
-                delete mealToUpdate.protein_per_unit;
-                delete mealToUpdate.carbs_per_unit;
-                delete mealToUpdate.fat_per_unit;
+                // 1. Calculate Scaled Values
+                meal.protein = scaleValue(meal.protein);
+                meal.carbs = scaleValue(meal.carbs);
+                meal.fat = scaleValue(meal.fat);
+                meal.calories = scaleValue(meal.calories); // The final scaled calorie value
+                
+                // 2. Calculate Scaled Quantity (Numerical Weight/Grams)
+                const baseGrams = parseFloat(meal.base_quantity_grams);
+                
+                // CRITICAL: The scaled numerical weight (in grams/ml)
+                const scaledGramsOnly = scaleValue(baseGrams); 
+                
+                // Store the numerical value in the plan object for saving to the 'quantity' column
+                meal.scaled_grams_only = scaledGramsOnly; 
+                
+                dayTotalCalories += meal.calories;
+
+                // 3. Update DOM Elements
+                
+                // Update Macros/Calories
+                mealEl.querySelector('.macro-P').textContent = `${meal.protein} g`;
+                mealEl.querySelector('.macro-C').textContent = `${meal.carbs} g`;
+                mealEl.querySelector('.macro-F').textContent = `${meal.fat} g`;
+                mealEl.querySelector('.meal-cal').textContent = meal.calories;
+                
+                // Update Scaled Weight Display (The numerical part)
+                const scaledWeightEl = mealEl.querySelector('.scaled-quantity-grams');
+                if (scaledWeightEl) {
+                    scaledWeightEl.textContent = `${scaledGramsOnly} ${meal.unit}`;
+                }
+                // Note: .meal-portion-text remains unchanged as requested.
+
+                // Add the scaled calorie value to the array for final average calculation
+                totalScaledCalories.push(meal.calories);
+            });
+            
+            // Update Daily Total Display
+            const dailyCalEl = document.querySelector(`.daily-cal-total[data-day="${dayNum}"] .daily-cal-value`);
+            if (dailyCalEl) {
+                dailyCalEl.textContent = dayTotalCalories;
             }
         });
 
-        // --- Update UI for the Day Totals ---
-        dayContainer.querySelector('.day-calorie-total').textContent = Math.round(scaledDayCal);
-        dayContainer.querySelector('.day-protein-total').textContent = Math.round(scaledDayP);
-        dayContainer.querySelector('.day-carbs-total').textContent = Math.round(scaledDayC);
-        dayContainer.querySelector('.day-fat-total').textContent = Math.round(scaledDayF);
-
-        // Update scaledPlanData day totals
-        scaledPlanData[dayIndex].P = scaledDayP;
-        scaledPlanData[dayIndex].C = scaledDayC;
-        scaledPlanData[dayIndex].F = scaledDayF;
-        scaledPlanData[dayIndex].Cal = scaledDayCal;
+        // 4. Calculate and Display Final 7-Day Average
+        // Recalculate average based on the 7 daily totals (the number of days)
+        const totalScaledDailySum = basePlan.map(day => day.meals.reduce((sum, meal) => sum + meal.calories, 0)).reduce((a, b) => a + b, 0);
+        const finalAvgCalories = Math.round(totalScaledDailySum / basePlan.length);
         
-        totalScaledCalSum += scaledDayCal;
+        if (scaledAvgDisplay) {
+            scaledAvgDisplay.textContent = finalAvgCalories;
+        }
+
+        // 5. Finalize the Scaled Plan for Submission
+        // The original plan object in JS is now the SCALED plan.
+        scaledPlanInput.value = JSON.stringify(basePlan);
+
+        // 6. Enable Save Button
+        if (saveBtn) {
+            saveBtn.disabled = false;
+        }
+        
+        console.log(`Scaled Plan Avg: ${finalAvgCalories} kcal. Ready to save.`);
     });
-
-    // --- 4. Final Summary Update ---
-    const finalScaledAvg = Math.round(totalScaledCalSum / 7);
-    document.getElementById('scaled-plan-avg-display').textContent = `${finalScaledAvg} kcal`;
-    
-    // Set the hidden input value for PHP to save the scaled data
-    scaledPlanInput.value = JSON.stringify(scaledPlanData);
-    
-    // Enable the save button now that the plan is calculated and saved data is prepared
-    saveButton.disabled = false;
-});
 </script>
-
+</body>
+</html>

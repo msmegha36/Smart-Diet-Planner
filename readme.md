@@ -20,6 +20,7 @@ It replicates a dietitian’s decision-making process using a **rule-based AI lo
 * Nutritionist Portal: [http://localhost/Smart-Diet-Planner/nutrionist/index.php](http://localhost/Smart-Diet-Planner/nutrionist/index.php)
 * Admin Login: [http://localhost/Smart-Diet-Planner/admin/login.php](http://localhost/Smart-Diet-Planner/admin/login.php)
 * DB: [http://localhost/phpmyadmin/](http://localhost/phpmyadmin/)
+* Plans Generation [http://localhost/Smart-Diet-Planner/DATALIB/dietplans.php](http://localhost/Smart-Diet-Planner/DATALIB/dietplans.php)
 
 ---
 ## 🔑 Admin Credentials (Demo)

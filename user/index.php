@@ -73,7 +73,7 @@ if ($bmi > 0) {
 
 // 2. Health Issue based warning
 if ($user['health_issues'] && $user['health_issues'] !== 'None') {
-    $alert_msg .= "🩺 Please note your declared health issue: **" . htmlspecialchars($user['health_issues']) . "**. Always consult a doctor before starting any new diet or exercise routine.\n";
+    $alert_msg .= "🩺 Please note your declared health issue: <strong>" . htmlspecialchars($user['health_issues']) . "</strong>. Always consult a doctor before starting any new diet or exercise routine.\n";
 }
 
 // Clean up the alert message for display

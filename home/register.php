@@ -2,8 +2,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// NOTE: We assume 'db_conn.php' exists in the config directory relative to this file's execution.
-// This PHP logic remains untouched as it handles the backend registration.
+
 include(__DIR__ . '/../config/db_conn.php');
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -55,7 +54,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($stmt_reg->execute()) {
         $stmt_reg->close();
         
-        // NO PLAN GENERATION OR SAVING PERFORMED HERE. Only simple success message.
         echo "<script>alert('✅ Registration successful! Please log in to continue.'); window.location='login.php';</script>";
 
     } else {

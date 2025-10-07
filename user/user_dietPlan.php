@@ -307,34 +307,38 @@ unset($_SESSION['success'], $_SESSION['error']);
 
 
                 <div class="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-emerald-50 transition duration-150">
-                    <div class="flex-1 min-w-0 mb-3 sm:mb-0">
-                        <!-- Meal Time & Name -->
-                        <div class="flex items-center mb-1">
-                            <span class="px-3 py-1 border rounded-full text-xs font-bold <?= $badgeColor ?> shadow-sm mr-3"><?= strtoupper(str_replace('_', ' ', $meal['meal_time'])) ?></span>
-                            <span class="text-lg font-extrabold text-gray-800 truncate"><?= htmlspecialchars($meal['meal_text']) ?></span>
+                    <!-- Meal Details Section -->
+                    <div class="flex-1 min-w-0 mb-3 sm:mb-0 pr-4"> 
+                        
+                        <!-- Meal Time Badge -->
+                        <span class="px-3 py-1 border rounded-full text-xs font-bold <?= $badgeColor ?> shadow-sm mb-2 inline-block"><?= strtoupper(str_replace('_', ' ', $meal['meal_time'])) ?></span>
+
+                        <!-- 1. Meal Description (Text + Scaled Grams) - PROMINENT -->
+                        <div class="text-lg font-extrabold text-gray-800 leading-snug">
+                            <?= htmlspecialchars($meal['meal_text']) ?>
+                            <?php if (!empty($meal['quantity'])): ?>
+                                <!-- Numerical Quantity (e.g., (160)gram) -->
+                                <span class="text-base font-semibold text-emerald-700 ml-2"> (<?= htmlspecialchars($meal['quantity']) ?>g)</span>
+                            <?php endif; ?>
                         </div>
 
-                        <!-- Quantity & Macros -->
-                        <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm ml-0 sm:ml-12">
-                            <!-- Quantity -->
-                            <?php if (!empty($meal['quantity'])): ?>
-                                <div class="text-gray-600 font-semibold">
-                                    Portion: <span class="font-extrabold text-emerald-700"><?= htmlspecialchars($meal['quantity']) ?></span>
-                                </div>
-                            <?php endif; ?>
+                        <!-- 2. Descriptive Portion Text - SMALLER and LIGHTER (Design Fix Applied Here) -->
+                        <div class="mt-1 text-sm font-medium text-gray-600">
+                            <span class="font-normal text-gray-500">Portion:</span> 
+                            <span class="font-semibold text-gray-700"><?= $meal['portion'] ?></span>
+                        </div>
 
-                            <!-- Nutrition Info Badges -->
-                            <div class="flex gap-2">
-                                <span class="bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold">P: <?= $meal['protein'] ?>g</span>
-                                <span class="bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full font-bold">C: <?= $meal['carbs'] ?>g</span>
-                                <span class="bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold">F: <?= $meal['fat'] ?>g</span>
-                                <span class="bg-gray-200 text-gray-800 px-2 py-0.5 rounded-full font-bold">Kcal: <?= $meal['calories'] ?></span>
-                            </div>
+                        <!-- 3. Macros Badges -->
+                        <div class="flex flex-wrap gap-2 text-sm mt-3">
+                            <span class="bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold">P: <?= $meal['protein'] ?>g</span>
+                            <span class="bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full font-bold">C: <?= $meal['carbs'] ?>g</span>
+                            <span class="bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold">F: <?= $meal['fat'] ?>g</span>
+                            <span class="bg-gray-200 text-gray-800 px-2 py-0.5 rounded-full font-bold">Kcal: <?= $meal['calories'] ?></span>
                         </div>
                     </div>
 
-                    <!-- Swap Button: ACTION UPDATED -->
-                    <form method="POST" action="swap_meal_logic.php" class="flex-shrink-0">
+                    <!-- Swap Button -->
+                    <form method="POST" action="swap_meal_logic.php" class="flex-shrink-0 mt-3 sm:mt-0">
                         <input type="hidden" name="meal_id" value="<?= $meal['id'] ?>">
                         <input type="hidden" name="old_protein" value="<?= $meal['protein'] ?>">
                         <input type="hidden" name="old_carbs" value="<?= $meal['carbs'] ?>">
