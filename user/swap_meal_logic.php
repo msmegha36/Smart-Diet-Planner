@@ -15,7 +15,7 @@ if (!isset($_SESSION['user_id'])) {
 define('RATE_LIMIT_SECONDS', 1);
 
 // Global API settings
-$apiKey = "AIzaSyDth-la8bVTOGY7forlBT-6xh9ihrdeG0M"; 
+$apiKey = ""; 
 $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=' . $apiKey;
 
 /**
