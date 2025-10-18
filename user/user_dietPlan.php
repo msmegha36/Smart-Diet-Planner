@@ -275,7 +275,7 @@ unset($_SESSION['success'], $_SESSION['error']);
             <div class="flex flex-wrap gap-4 text-sm items-center font-semibold bg-emerald-700/30 p-1.5 rounded-lg">
               <!-- UPDATED: Calorie Status Badge -->
               <span class="flex flex-col items-center justify-center gap-0 font-extrabold px-3 py-1 rounded-full shadow-sm text-sm <?= $cal_status_class ?>">
-                <span class="text-xs font-semibold"><?= $cal_status_text ?></span>
+             
                 <span class="text-lg">Total Kcal: <?= $totalCalories ?></span>
               </span>
               <!-- End Calorie Status Badge -->

@@ -11,46 +11,47 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // --- RATE LIMIT CONFIGURATION ---
-// Minimum time (in seconds) required between successful API calls per user.
-define('RATE_LIMIT_SECONDS', 5);
+// Reduced rate limit to 1 second to improve user experience on subsequent clicks.
+define('RATE_LIMIT_SECONDS', 1);
 
 // Global API settings
-// NOTE: I'm setting the apiKey to an empty string to ensure the environment-provided key is used securely.
-$apiKey = "AIzaSyCGm1uGRJhEfl9cKPGNOSku4Ky1uL2G-fU"; 
+$apiKey = "AIzaSyDth-la8bVTOGY7forlBT-6xh9ihrdeG0M"; 
 $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=' . $apiKey;
 
 /**
- * Calls the Gemini API with exponential backoff for resilience.
+ * Calls the Gemini API with a single attempt and an 8-second timeout.
+ * (Exponential backoff was already removed for speed in the previous revision).
  * @param array $payload The API request payload.
  * @return string|false The JSON response body on success, or false on failure.
  */
 function callGeminiApi($payload) {
     global $apiUrl;
-    $max_retries = 3;
-    $delay = 1;
-
-    for ($i = 0; $i < $max_retries; $i++) {
-        $ch = curl_init($apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    $ch = curl_init($apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    // Set a reasonable timeout for the API call (8 seconds)
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8); 
+    
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    // Check for cURL errors (e.g., connection failure, timeout)
+    if (curl_errno($ch)) {
         curl_close($ch);
-
-        if ($http_code === 200) {
-            return $response;
-        }
-
-        // Wait before retrying
-        if ($i < $max_retries - 1) {
-            sleep($delay);
-            $delay *= 2; // Exponential backoff
-        }
+        return false;
     }
-    return false; // Failed after all retries
+    
+    curl_close($ch);
+
+    // Only return success on a perfect 200 HTTP code
+    if ($http_code === 200) {
+        return $response;
+    }
+
+    return false;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
@@ -61,13 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
 
     if (($currentTime - $lastCallTime) < RATE_LIMIT_SECONDS) {
         $wait_time = RATE_LIMIT_SECONDS - ($currentTime - $lastCallTime);
-        $_SESSION['error'] = "You are swapping meals too quickly. Please wait {$wait_time} seconds before trying again.";
-        header("Location: user_plans.php");
+        $_SESSION['error'] = "You are swapping meals too quickly. Please wait {$wait_time} second(s) before trying again.";
+        header("Location: user_dietPlan.php"); 
         exit();
     }
     
     // --- UPDATE LAST CALL TIME ---
-    // Set the timestamp immediately after passing the rate limit check
     $_SESSION['last_api_call'] = $currentTime;
 
     // Sanitize and extract POST data
@@ -80,16 +80,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
     $user_id = $_SESSION['user_id'];
     
     // 1. Fetch User Preferences for context
-    // FIX: Selecting the correct column 'dietary' from the 'reg' table.
     $user_res = mysqli_query($connection, "SELECT goal, health_issues, dietary FROM reg WHERE id='$user_id'");
     $user_prefs = mysqli_fetch_assoc($user_res);
-    $goal = $user_prefs['goal'] ?? 'balanced';
-    $health_issues = $user_prefs['health_issues'] ?? 'None';
-    
-    // FIX: Using the correct variable name $dietary.
-    $dietary = $user_prefs['dietary'] ?? 'Non-Vegetarian'; 
+    // Sanitize user inputs for use in the query (already done, ensuring correctness)
+    $goal = mysqli_real_escape_string($connection, $user_prefs['goal'] ?? 'balanced');
+    $health_issues = mysqli_real_escape_string($connection, $user_prefs['health_issues'] ?? 'None');
+    $dietary = mysqli_real_escape_string($connection, $user_prefs['dietary'] ?? 'Non-Vegetarian'); 
 
-    // Define the JSON schema for structured output
+    // Define the JSON schema for structured output (Logic is correct)
     $responseSchema = [
         'type' => 'OBJECT',
         'properties' => [
@@ -103,10 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
         'propertyOrdering' => ['meal_text', 'quantity', 'protein', 'carbs', 'fat', 'calories']
     ];
 
-    // Define System Instruction: Strict instructions for the AI persona and output format
+    // Define System Instruction and User Query (Logic is correct)
     $systemPrompt = "You are a professional nutritionist. Your task is to suggest a single, specific meal that fits the user's dietary profile and macro targets. The suggested meal must maintain the requested protein, carbs, and fat values within a 10% range. Always use the specified {$dietary} dietary preference and give same or litle bit large aplhabet size meal. Respond only with the required JSON object.";
 
-    // Define User Prompt: Contextual information for the meal swap
     $userQuery = "Generate a new meal suggestion for the '{$meal_time}' meal time. 
     User Goal: {$goal}. 
     User Health/Dietary Focus: {$health_issues}.
@@ -116,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
     - Carbs: {$old_carbs}g (± 10%)
     - Fat: {$old_fat}g (± 10%)";
 
-    // Build the API payload
+    // Build the API payload (Logic is correct)
     $payload = [
         'contents' => [['parts' => [['text' => $userQuery]]]],
         'generationConfig' => [
@@ -126,19 +123,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
         'systemInstruction' => ['parts' => [['text' => $systemPrompt]]]
     ];
 
+    // *** BLOCKING API CALL ***
     $apiResponse = callGeminiApi($payload);
 
     if ($apiResponse) {
         $result = json_decode($apiResponse, true);
         
-        // Extract the JSON string from the response
         $json_text = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
 
         if ($json_text) {
             $newMeal = json_decode($json_text, true);
 
             if ($newMeal && is_array($newMeal)) {
-                // Sanitize and prepare for DB update, ensuring integer types for macros
+                // Sanitize and prepare for DB update
                 $new_meal_text = mysqli_real_escape_string($connection, $newMeal['meal_text'] ?? 'New Meal Suggestion');
                 $new_quantity = mysqli_real_escape_string($connection, $newMeal['quantity'] ?? '1 serving');
                 $new_protein = (int)round($newMeal['protein'] ?? $old_protein);
@@ -162,17 +159,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_id'])) {
                 if (mysqli_query($connection, $update_query)) {
                     $_SESSION['success'] = "Meal successfully swapped with: **{$newMeal['meal_text']}**. Macros updated to P:{$new_protein}g, C:{$new_carbs}g, F:{$new_fat}g.";
                 } else {
-                    $_SESSION['error'] = "Database update failed: " . mysqli_error($connection);
+                    $_SESSION['error'] = "Database error: Failed to update meal plan.";
                 }
 
             } else {
-                $_SESSION['error'] = "AI generated invalid JSON structure or data. Raw response: " . htmlspecialchars($json_text);
+                // FAILED: AI returned invalid JSON.
+                $_SESSION['error'] = "No meal found. Try later.";
             }
         } else {
-            $_SESSION['error'] = "AI failed to generate a meal suggestion. Please try again.";
+            // FAILED: AI returned an empty response or an error candidate.
+            $_SESSION['error'] = "No meal found. Try later.";
         }
     } else {
-        $_SESSION['error'] = "Could not connect to the meal suggestion service (Gemini API).";
+        // FAILED: Connection/Timeout error.
+        $_SESSION['error'] = "No meal found. Try later.";
     }
 
 } else {

@@ -393,10 +393,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_plan'])) {
 
                 // 🔹 Step 2: Insert new plan
                 $insertStmt = $connection->prepare("
-                    INSERT INTO user_diet_plans 
-                    (user_id, day_number, meal_time, meal_text, quantity, portion, protein, carbs, fat, calories)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ");
+    INSERT INTO user_diet_plans 
+    (user_id, day_number, meal_time, meal_text, quantity, `portion`, protein, carbs, fat, calories)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+");
                 if (!$insertStmt) { throw new Exception("Prepare failed (INSERT): " . $connection->error); }
 
                 foreach ($plan as $day) {
